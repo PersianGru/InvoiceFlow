@@ -1,6 +1,9 @@
 # Changelog
 
-## 0.10.1 — first public release (2026-11-08)
+## 0.10.2 — first public release (2026-11-09)
+
+- The image is built with the current Debian security updates and scanned (secrets, Trivy) before it is
+  published.
 
 - One published image, `ghcr.io/persiangru/invoiceflow`, runs the API, the worker and the web dashboards;
   the customer `docker-compose.yml` and `env.example` are attached to every release. Nothing to build.

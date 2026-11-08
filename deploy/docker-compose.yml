@@ -9,7 +9,7 @@ name: invoiceflow
 
 x-backend-env: &backend-env
   APP_ENV: ${APP_ENV:-production}
-  APP_VERSION: ${APP_VERSION:-0.10.1}
+  APP_VERSION: ${APP_VERSION:-0.10.2}
   SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY (32+ random characters)}
   MASTER_KEY: ${MASTER_KEY:?set MASTER_KEY (base64url of 32 random bytes)}
   DATABASE_URL: postgresql+psycopg://invoiceflow:${APP_DB_PASSWORD:?set APP_DB_PASSWORD}@postgres:5432/invoiceflow
@@ -164,14 +164,14 @@ services:
       retries: 30
 
   migrate:
-    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.10.1}}
+    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.10.2}}
     command: ["alembic", "upgrade", "head"]
     environment: *backend-env
     depends_on:
       postgres: { condition: service_healthy }
 
   api:
-    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.10.1}}
+    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.10.2}}
     restart: unless-stopped
     environment: *backend-env
     volumes:
@@ -183,7 +183,7 @@ services:
       clamav: { condition: service_healthy }
 
   worker:
-    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.10.1}}
+    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.10.2}}
     restart: unless-stopped
     command: ["arq", "app.workers.main.WorkerSettings"]
     environment: *backend-env
@@ -202,7 +202,7 @@ services:
       clamav: { condition: service_healthy }
 
   web:
-    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.10.1}}
+    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.10.2}}
     restart: unless-stopped
     working_dir: /app/web
     command: ["node", "server.js"]
