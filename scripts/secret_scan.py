@@ -73,7 +73,8 @@ def scan(root: Path, strict: bool = False) -> list[str]:
         except OSError:
             continue
         for name, pat in RULES.items():
-            if rel == EMBEDDED_KEY_FILE and name == EMBEDDED_KEY_RULE:
+            # in the repository at EMBEDDED_KEY_FILE, inside the image at app/<EMBEDDED_KEY_FILE>
+            if rel in (EMBEDDED_KEY_FILE, f"app/{EMBEDDED_KEY_FILE}") and name == EMBEDDED_KEY_RULE:
                 continue
             for m in pat.finditer(data):
                 if not strict and m.group(0) in ALLOW_VALUES:
