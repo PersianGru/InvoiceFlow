@@ -1,0 +1,45 @@
+{
+  "name": "Folder to InvoiceFlow",
+  "nodes": [
+    {
+      "parameters": { "triggerOn": "folder", "path": "/data/invoices-inbox", "events": ["add"], "options": {} },
+      "name": "New file in folder (swap for Dropbox / Drive / SFTP)",
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": { "filePath": "={{ $json.path }}", "options": {} },
+      "name": "Read file",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.INVOICEFLOW_API_URL }}/api/v1/documents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $env.INVOICEFLOW_API_KEY }}" },
+            { "name": "Idempotency-Key", "value": "={{ $('New file in folder (swap for Dropbox / Drive / SFTP)').item.json.path }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": { "parameters": [{ "parameterType": "formBinaryData", "name": "file", "inputDataFieldName": "data" }] },
+        "options": {}
+      },
+      "name": "Upload to InvoiceFlow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 0]
+    }
+  ],
+  "connections": {
+    "New file in folder (swap for Dropbox / Drive / SFTP)": { "main": [[{ "node": "Read file", "type": "main", "index": 0 }]] },
+    "Read file": { "main": [[{ "node": "Upload to InvoiceFlow", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

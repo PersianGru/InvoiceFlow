@@ -1,0 +1,141 @@
+{
+  "version": "2026.11",
+  "source": "Council Directive 2006/112/EC art. 226 (full invoices) + national extras (DE, IT, PL, FR, ES, BE, LV, LT, EE). TODO(legal): simplified-invoice thresholds (art. 220a/238) per country; Baltic extras verified against secondary sources on 2026-11-05, confirm against the statutes.",
+  "eu_art_226": [
+    {
+      "field": "issue_date",
+      "bt": "BT-2",
+      "reason": "art. 226(1) date of issue"
+    },
+    {
+      "field": "number",
+      "bt": "BT-1",
+      "reason": "art. 226(2) sequential number"
+    },
+    {
+      "field": "supplier.vat_id",
+      "bt": "BT-31",
+      "reason": "art. 226(3) supplier VAT identification number",
+      "unless": "supplier_not_vat_registered"
+    },
+    {
+      "field": "supplier.name",
+      "bt": "BT-27",
+      "reason": "art. 226(5) full name of the supplier"
+    },
+    {
+      "field": "supplier.address.line1",
+      "bt": "BT-35",
+      "reason": "art. 226(5) address of the supplier",
+      "level": "warning"
+    },
+    {
+      "field": "buyer.name",
+      "bt": "BT-44",
+      "reason": "art. 226(5) full name of the customer"
+    },
+    {
+      "field": "lines",
+      "bt": "BG-25",
+      "reason": "art. 226(6) quantity and nature of the goods or services",
+      "level": "warning"
+    },
+    {
+      "field": "totals.net_total",
+      "bt": "BT-109",
+      "reason": "art. 226(8) taxable amount"
+    },
+    {
+      "field": "totals.vat_total",
+      "bt": "BT-110",
+      "reason": "art. 226(10) VAT amount payable",
+      "unless": "reverse_charge_or_exempt"
+    },
+    {
+      "field": "totals.gross_total",
+      "bt": "BT-112",
+      "reason": "total amount with VAT",
+      "level": "warning"
+    },
+    {
+      "field": "currency",
+      "bt": "BT-5",
+      "reason": "currency of the amounts"
+    }
+  ],
+  "country_extras": {
+    "DE": [
+      {
+        "field": "supplier.tax_id_or_vat_id",
+        "reason": "§ 14 (4) Nr. 2 UStG: Steuernummer or USt-IdNr.",
+        "level": "warning"
+      },
+      {
+        "field": "delivery_date_or_period",
+        "reason": "§ 14 (4) Nr. 6 UStG: Zeitpunkt der Lieferung/Leistung",
+        "level": "warning"
+      }
+    ],
+    "IT": [
+      {
+        "field": "supplier.tax_id",
+        "reason": "codice fiscale / partita IVA",
+        "level": "warning"
+      }
+    ],
+    "PL": [
+      {
+        "field": "buyer.vat_id",
+        "reason": "NIP nabywcy (art. 106e ust. 1 pkt 5 ustawy o VAT) for B2B",
+        "level": "warning"
+      }
+    ],
+    "FR": [
+      {
+        "field": "supplier.registration_id",
+        "reason": "SIREN/SIRET on invoices (art. L441-9 C. com.)",
+        "level": "warning"
+      }
+    ],
+    "ES": [
+      {
+        "field": "buyer.vat_id",
+        "reason": "NIF del destinatario (art. 6 RD 1619/2012)",
+        "level": "warning"
+      }
+    ],
+    "BE": [
+      {
+        "field": "supplier.registration_id",
+        "reason": "numéro d'entreprise (BCE/KBO)",
+        "level": "warning"
+      }
+    ],
+    "LV": [
+      {
+        "field": "supplier.registration_id",
+        "reason": "Accounting Law § 11: registration number of the issuer (and of the recipient, if registered)",
+        "level": "warning"
+      },
+      {
+        "field": "delivery_date_or_period",
+        "reason": "Accounting Law § 11: date of the business transaction when it differs from the issue date",
+        "level": "warning"
+      }
+    ],
+    "LT": [
+      {
+        "field": "supplier.registration_id",
+        "reason": "Law on Accounting art. 13: registration code of the issuer; VAT invoices (PVM sąskaita faktūra) carry a series and number",
+        "level": "warning"
+      }
+    ],
+    "EE": [
+      {
+        "field": "supplier.registration_id",
+        "reason": "Accounting Act § 7: registry code of the issuer on the source document",
+        "level": "warning"
+      }
+    ]
+  }
+}

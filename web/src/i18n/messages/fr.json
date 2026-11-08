@@ -1,0 +1,17 @@
+{
+  "app.name": "InvoiceFlow",
+  "app.tagline": "Des factures en entrée, des données propres en sortie.",
+  "home.status": "L'API est à {api}.",
+  "license.state.valid": "Sous licence",
+  "license.state.grace": "La licence n'a pas pu être renouvelée (période de grâce)",
+  "license.state.expired": "Licence terminée",
+  "license.state.unlicensed": "Sans licence",
+  "license.state.invalid": "La licence n'a pas pu être vérifiée",
+  "license.trial_days_left": "Essai : {days} jour(s) restant(s)",
+  "license.open_page": "Ouvrir la page Licence",
+  "intake.paused": "L'abonnement InvoiceFlow de votre cabinet est en pause. Les documents existants restent disponibles.",
+  "license.state.core_not_included": "La licence n'inclut pas InvoiceFlow",
+  "license.banner.core_not_included": "Cette licence n'inclut pas InvoiceFlow (son module principal). Demandez à l'émetteur de l'ajouter, ou achetez InvoiceFlow dans la boutique. La réception et le traitement sont en pause ; vos données restent disponibles.",
+  "license.refresh.ok": "Licence vérifiée auprès du hub.",
+  "license.refresh.next": "La prochaine vérification est possible à {time}."
+}

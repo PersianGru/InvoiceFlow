@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "InvoiceFlow",
+    "slug": "invoiceflow",
+    "version": "0.9.0",
+    "orientation": "portrait",
+    "scheme": "invoiceflow",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.21cel.invoiceflow",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Take a photo of an invoice to send it to your accountant.",
+        "NSPhotoLibraryUsageDescription": "Choose an invoice photo to send it to your accountant."
+      }
+    },
+    "android": {
+      "package": "com.c21cel.invoiceflow",
+      "permissions": ["CAMERA"]
+    },
+    "plugins": [
+      ["expo-image-picker", { "cameraPermission": "Take a photo of an invoice to send it to your accountant." }],
+      "expo-secure-store"
+    ],
+    "extra": {
+      "apiUrl": "https://api.invoiceflow.example"
+    }
+  }
+}

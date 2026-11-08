@@ -1,0 +1,57 @@
+{
+  "name": "InvoiceFlow: approved invoice to spreadsheet",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "invoiceflow-approved", "options": { "rawBody": true } },
+      "name": "InvoiceFlow webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "invoiceflow-approved"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst secret = $env.INVOICEFLOW_WEBHOOK_SECRET;\nconst header = $input.first().json.headers['x-invoiceflow-signature'];\nconst body = $input.first().binary?.data ? Buffer.from($input.first().binary.data.data, 'base64') : Buffer.from(JSON.stringify($input.first().json.body));\nconst parts = Object.fromEntries(header.split(',').map((p) => p.split('=')));\nif (Math.abs(Date.now() / 1000 - Number(parts.t)) > 300) throw new Error('stale signature');\nconst want = crypto.createHmac('sha256', secret).update(`${parts.t}.`).update(body).digest('hex');\nif (!crypto.timingSafeEqual(Buffer.from(want), Buffer.from(parts.v1))) throw new Error('bad signature');\nreturn [{ json: $input.first().json.body }];"
+      },
+      "name": "Verify signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.INVOICEFLOW_API_URL }}/api/v1/documents/{{ $json.data.document.id }}/invoice",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "x-api-key", "value": "={{ $env.INVOICEFLOW_API_KEY }}" }] },
+        "options": {}
+      },
+      "name": "Get canonical invoice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inv = $input.first().json.invoice;\nreturn [{ json: { number: inv.number, issue_date: inv.issue_date, supplier: inv.supplier.name, vat_id: inv.supplier.vat_id, currency: inv.currency, net: inv.totals.net_total, vat: inv.totals.vat_total, gross: inv.totals.gross_total, gl_account: inv.suggested_gl_account, document_id: inv.id } }];"
+      },
+      "name": "Row for the sheet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 0]
+    },
+    {
+      "parameters": { "operation": "append", "options": {} },
+      "name": "Append row (replace with your sheet or ERP node)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [880, 0]
+    }
+  ],
+  "connections": {
+    "InvoiceFlow webhook": { "main": [[{ "node": "Verify signature", "type": "main", "index": 0 }]] },
+    "Verify signature": { "main": [[{ "node": "Get canonical invoice", "type": "main", "index": 0 }]] },
+    "Get canonical invoice": { "main": [[{ "node": "Row for the sheet", "type": "main", "index": 0 }]] },
+    "Row for the sheet": { "main": [[{ "node": "Append row (replace with your sheet or ERP node)", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

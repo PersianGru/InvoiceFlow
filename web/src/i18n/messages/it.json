@@ -1,0 +1,17 @@
+{
+  "app.name": "InvoiceFlow",
+  "app.tagline": "Fatture in entrata, dati puliti in uscita.",
+  "home.status": "Le dashboard arrivano nella fase 3. L'API è su {api}.",
+  "license.state.valid": "Con licenza",
+  "license.state.grace": "Impossibile rinnovare la licenza (periodo di tolleranza)",
+  "license.state.expired": "Licenza terminata",
+  "license.state.unlicensed": "Senza licenza",
+  "license.state.invalid": "Impossibile verificare la licenza",
+  "license.trial_days_left": "Prova: {days} giorno/i rimanente/i",
+  "license.open_page": "Apri la pagina Licenza",
+  "intake.paused": "L'abbonamento InvoiceFlow del vostro studio è in pausa. I documenti esistenti restano disponibili.",
+  "license.state.core_not_included": "La licenza non include InvoiceFlow",
+  "license.banner.core_not_included": "Questa licenza non include InvoiceFlow (il modulo principale). Chieda a chi l'ha emessa di aggiungerlo, oppure acquisti InvoiceFlow nello store. Ricezione ed elaborazione sono in pausa; i suoi dati restano disponibili.",
+  "license.refresh.ok": "Licenza verificata con l'hub.",
+  "license.refresh.next": "Il prossimo controllo è possibile alle {time}."
+}

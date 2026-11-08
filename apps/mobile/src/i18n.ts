@@ -1,0 +1,87 @@
+// Launch locales; strings fall back to English per key.
+const en = {
+  "app.name": "InvoiceFlow",
+  "login.title": "Sign in",
+  "login.email": "Email",
+  "login.password": "Password",
+  "login.totp": "Authenticator code",
+  "login.button": "Sign in",
+  "login.server": "Server",
+  "home.title": "Your documents",
+  "home.open_questions": "{n} open question(s) from your accountant",
+  "home.paused": "Your accountant's InvoiceFlow subscription is not active. Existing documents stay available; new uploads are paused.",
+  "home.capture": "Photograph an invoice",
+  "home.pick": "Choose a file",
+  "home.empty": "No documents yet. Photograph your first invoice.",
+  "home.refresh": "Refresh",
+  "home.signout": "Sign out",
+  "upload.sending": "Sending…",
+  "upload.done": "Sent. Your accountant will see it shortly.",
+  "upload.failed": "Upload failed: {m}",
+  "doc.back": "Back",
+  "doc.status": "Status",
+  "doc.questions": "Questions and answers",
+  "doc.answer": "Your answer",
+  "doc.send": "Send",
+  "doc.none": "No questions.",
+  "status.received": "Received",
+  "status.processing": "Processing",
+  "status.needs_review": "In review",
+  "status.needs_info": "Needs your answer",
+  "status.approved": "Approved",
+  "status.rejected": "Rejected",
+  "status.quarantined": "Held",
+  "status.failed": "Failed",
+  "payment.paid": "Paid",
+  "payment.partial": "Partly paid",
+};
+const de: Partial<typeof en> = {
+  "login.title": "Anmelden",
+  "login.email": "E-Mail",
+  "login.password": "Passwort",
+  "login.totp": "Code der Authenticator-App",
+  "login.button": "Anmelden",
+  "login.server": "Server",
+  "home.title": "Ihre Belege",
+  "home.open_questions": "{n} offene Frage(n) Ihrer Kanzlei",
+  "home.paused": "Das InvoiceFlow-Abonnement Ihrer Kanzlei ist nicht aktiv. Vorhandene Belege bleiben verfügbar; neue Uploads sind pausiert.",
+  "home.capture": "Rechnung fotografieren",
+  "home.pick": "Datei wählen",
+  "home.empty": "Noch keine Belege. Fotografieren Sie Ihre erste Rechnung.",
+  "home.refresh": "Aktualisieren",
+  "home.signout": "Abmelden",
+  "upload.sending": "Wird gesendet…",
+  "upload.done": "Gesendet. Ihre Kanzlei sieht den Beleg in Kürze.",
+  "upload.failed": "Upload fehlgeschlagen: {m}",
+  "doc.back": "Zurück",
+  "doc.status": "Status",
+  "doc.questions": "Fragen und Antworten",
+  "doc.answer": "Ihre Antwort",
+  "doc.send": "Senden",
+  "doc.none": "Keine Fragen.",
+  "status.received": "Eingegangen",
+  "status.processing": "In Verarbeitung",
+  "status.needs_review": "In Prüfung",
+  "status.needs_info": "Antwort nötig",
+  "status.approved": "Freigegeben",
+  "status.rejected": "Abgelehnt",
+  "status.quarantined": "Zurückgehalten",
+  "status.failed": "Fehlgeschlagen",
+  "payment.paid": "Bezahlt",
+  "payment.partial": "Teilweise bezahlt",
+};
+
+export type MessageKey = keyof typeof en;
+export const LOCALES = ["en", "de", "fr", "nl", "es", "it", "pl"] as const;
+export type Locale = (typeof LOCALES)[number];
+const MESSAGES: Record<Locale, Partial<typeof en>> = { en, de, fr: {}, nl: {}, es: {}, it: {}, pl: {} };
+
+export function t(locale: Locale, key: MessageKey, vars: Record<string, string | number> = {}): string {
+  const text = MESSAGES[locale][key] ?? en[key];
+  return Object.entries(vars).reduce((s, [k, v]) => s.replaceAll(`{${k}}`, String(v)), text);
+}
+
+export function localeFrom(tag: string | null | undefined): Locale {
+  const short = (tag ?? "en").slice(0, 2).toLowerCase();
+  return (LOCALES as readonly string[]).includes(short) ? (short as Locale) : "en";
+}

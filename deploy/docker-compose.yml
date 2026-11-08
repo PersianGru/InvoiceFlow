@@ -1,0 +1,224 @@
+# InvoiceFlow - customer deployment. ONE image (ghcr.io/persiangru/invoiceflow, published by the Release
+# workflow of the GitHub repository) runs the API, the worker and the web dashboards; Postgres, Redis and
+# ClamAV are stock images. Nothing to build: `docker compose up -d` pulls it.
+# Pin another version with INVOICEFLOW_VERSION in .env, or point IMAGE at an image you built yourself
+# (docker build -t invoiceflow:<v> .  then IMAGE=invoiceflow:<v>).
+# Portainer: Stacks -> Add stack -> upload this file and paste .env into the environment variables.
+# No mock hub, no test keys: the product talks to https://license.21cel.com.
+name: invoiceflow
+
+x-backend-env: &backend-env
+  APP_ENV: ${APP_ENV:-production}
+  APP_VERSION: ${APP_VERSION:-0.10.1}
+  SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY (32+ random characters)}
+  MASTER_KEY: ${MASTER_KEY:?set MASTER_KEY (base64url of 32 random bytes)}
+  DATABASE_URL: postgresql+psycopg://invoiceflow:${APP_DB_PASSWORD:?set APP_DB_PASSWORD}@postgres:5432/invoiceflow
+  DATABASE_URL_MIGRATIONS: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/invoiceflow
+  REDIS_URL: redis://redis:6379/0
+  STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
+  STORAGE_LOCAL_PATH: /data/storage
+  S3_ENDPOINT: ${S3_ENDPOINT:-}
+  S3_BUCKET: ${S3_BUCKET:-}
+  S3_REGION: ${S3_REGION:-}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+  S3_OBJECT_LOCK: ${S3_OBJECT_LOCK:-}
+  CLAMAV_HOST: clamav
+  VIRUS_SCAN_REQUIRED: ${VIRUS_SCAN_REQUIRED:-}
+  # Licensing (spec 1.7): the project's public keys and installation key are built into the product;
+  # these two override them only for a sandbox or test installation.
+  LICENSE_PUBLIC_KEYS: ${LICENSE_PUBLIC_KEYS:-}
+  LICENSE_INSTALLATION_KEY: ${LICENSE_INSTALLATION_KEY:-}
+  LICENSE_KEY_PREFIX: ${LICENSE_KEY_PREFIX:-IVF}
+  LICENSE_JWKS_FETCH: ${LICENSE_JWKS_FETCH:-true}
+  LICENSE_SEND_INSTANCE_NAME: ${LICENSE_SEND_INSTANCE_NAME:-false}
+  MACHINE_ID_FILE: /host/etc/machine-id
+  STORE_URL: ${STORE_URL:-https://ivf.21cel.com}
+  SUPPORT_URL: ${SUPPORT_URL:-https://21cel.com/support}
+  # Browser-facing origins: the web container proxies /api to the API, so one public URL is enough.
+  PUBLIC_URL: ${PUBLIC_URL:?set PUBLIC_URL (the public https URL of the web app)}
+  CORS_ORIGINS: ${PUBLIC_URL}
+  COOKIE_SECURE: ${COOKIE_SECURE:-true}
+  SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-43200}
+  PASSWORD_MIN_LENGTH: ${PASSWORD_MIN_LENGTH:-12}
+  LOGIN_LOCK_THRESHOLD: ${LOGIN_LOCK_THRESHOLD:-5}
+  LOGIN_LOCK_MINUTES: ${LOGIN_LOCK_MINUTES:-15}
+  LOGIN_IP_RATE_PER_MINUTE: ${LOGIN_IP_RATE_PER_MINUTE:-20}
+  API_ACCESS_TOKEN_TTL_SECONDS: ${API_ACCESS_TOKEN_TTL_SECONDS:-3600}
+  API_DEFAULT_RATE_LIMIT_PER_MINUTE: ${API_DEFAULT_RATE_LIMIT_PER_MINUTE:-120}
+  WEBHOOK_TIMEOUT_SECONDS: ${WEBHOOK_TIMEOUT_SECONDS:-10}
+  VIES_ENABLED: ${VIES_ENABLED:-true}
+  ECB_RATES_ENABLED: ${ECB_RATES_ENABLED:-true}
+  # Reading engines: built-in CPU engines by default; cloud only with keys + firm opt-in.
+  OCR_ENGINE: ${OCR_ENGINE:-auto}
+  OCR_LANGUAGES: ${OCR_LANGUAGES:-}
+  OCR_CLOUD: ${OCR_CLOUD:-none}
+  MISTRAL_OCR_MODEL: ${MISTRAL_OCR_MODEL:-mistral-ocr-latest}
+  LOCAL_LLM: ${LOCAL_LLM:-auto}
+  LLAMACPP_MODEL: ${LLAMACPP_MODEL:-qwen2.5-1.5b}
+  LLAMACPP_THREADS: ${LLAMACPP_THREADS:-}
+  LLAMACPP_CONTEXT: ${LLAMACPP_CONTEXT:-8192}
+  LLAMACPP_AUTO_DOWNLOAD: ${LLAMACPP_AUTO_DOWNLOAD:-true}
+  MODELS_DIR: /data/models
+  OLLAMA_URL: ${OLLAMA_URL:-}
+  OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+  LOCAL_OPENAI_BASE_URL: ${LOCAL_OPENAI_BASE_URL:-}
+  LOCAL_OPENAI_API_KEY: ${LOCAL_OPENAI_API_KEY:-}
+  LOCAL_OPENAI_MODEL: ${LOCAL_OPENAI_MODEL:-}
+  LOCAL_OPENAI_VISION: ${LOCAL_OPENAI_VISION:-false}
+  CLOUD_PROVIDER: ${CLOUD_PROVIDER:-auto}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  CLOUD_MODEL: ${CLOUD_MODEL:-claude-sonnet-5-5}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+  OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+  MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+  MISTRAL_MODEL: ${MISTRAL_MODEL:-mistral-small-latest}
+  CLOUD_OPENAI_COMPAT_BASE_URL: ${CLOUD_OPENAI_COMPAT_BASE_URL:-}
+  CLOUD_OPENAI_COMPAT_API_KEY: ${CLOUD_OPENAI_COMPAT_API_KEY:-}
+  CLOUD_OPENAI_COMPAT_MODEL: ${CLOUD_OPENAI_COMPAT_MODEL:-}
+  CLOUD_VISION: ${CLOUD_VISION:-true}
+  # Channels (leave empty to keep a channel off) and outbound mail
+  INBOUND_EMAIL_DOMAIN: ${INBOUND_EMAIL_DOMAIN:-}
+  INBOUND_EMAIL_WEBHOOK_TOKEN: ${INBOUND_EMAIL_WEBHOOK_TOKEN:-}
+  IMAP_HOST: ${IMAP_HOST:-}
+  IMAP_PORT: ${IMAP_PORT:-993}
+  IMAP_SSL: ${IMAP_SSL:-true}
+  IMAP_USER: ${IMAP_USER:-}
+  IMAP_PASSWORD: ${IMAP_PASSWORD:-}
+  IMAP_FOLDER: ${IMAP_FOLDER:-INBOX}
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-}
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+  TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+  WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+  WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+  WHATSAPP_APP_SECRET: ${WHATSAPP_APP_SECRET:-}
+  WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-}
+  WHATSAPP_API_VERSION: ${WHATSAPP_API_VERSION:-v21.0}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+configs:
+  pg-init:
+    # Runs once when the database volume is created: the API's login role, member of the NOLOGIN
+    # role invoiceflow_app that the first migration grants DML to, so Row-Level Security applies.
+    content: |
+      #!/bin/sh
+      set -e
+      psql -v ON_ERROR_STOP=1 --username "$$POSTGRES_USER" --dbname "$$POSTGRES_DB" <<SQL
+      SET app.db_password = '$${APP_DB_PASSWORD}';
+      DO \$$\$$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'invoiceflow_app') THEN
+          CREATE ROLE invoiceflow_app NOLOGIN;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'invoiceflow') THEN
+          EXECUTE format('CREATE ROLE invoiceflow LOGIN PASSWORD %L IN ROLE invoiceflow_app', current_setting('app.db_password', true));
+        END IF;
+      END \$$\$$;
+      SQL
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: invoiceflow
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    configs:
+      - source: pg-init
+        target: /docker-entrypoint-initdb.d/zz-init.sh
+        mode: 0555
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d invoiceflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    volumes:
+      - clamdb:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 30
+
+  migrate:
+    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.10.1}}
+    command: ["alembic", "upgrade", "head"]
+    environment: *backend-env
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.10.1}}
+    restart: unless-stopped
+    environment: *backend-env
+    volumes:
+      - appdata:/data
+      - ${MACHINE_ID_PATH:-/etc/machine-id}:/host/etc/machine-id:ro
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      clamav: { condition: service_healthy }
+
+  worker:
+    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.10.1}}
+    restart: unless-stopped
+    command: ["arq", "app.workers.main.WorkerSettings"]
+    environment: *backend-env
+    healthcheck:  # the image's own check is the API's; the worker reports through arq's health key in Redis
+      test: ["CMD", "arq", "app.workers.main.WorkerSettings", "--check"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+    volumes:
+      - appdata:/data
+      - ${MACHINE_ID_PATH:-/etc/machine-id}:/host/etc/machine-id:ro
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      clamav: { condition: service_healthy }
+
+  web:
+    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.10.1}}
+    restart: unless-stopped
+    working_dir: /app/web
+    command: ["node", "server.js"]
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    ports: ["${WEB_PORT:-3000}:3000"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000'+(process.env.NEXT_BASE_PATH||'')+'/manifest.webmanifest').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    depends_on: [api]
+
+volumes:
+  pgdata:
+  appdata:
+  clamdb:

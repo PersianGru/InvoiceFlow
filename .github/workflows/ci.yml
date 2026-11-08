@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python scripts/secret_scan.py
+
+  backend:
+    name: Backend (lint, types, audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -e "backend[dev]"
+      - run: ruff check backend/app && black --check backend/app backend/alembic
+      - run: mypy app
+        working-directory: backend
+      - run: pip-audit --strict --desc on -r <(pip freeze | grep -v "^-e")
+        shell: bash
+
+  web:
+    name: Web (lint, types, tests, build, audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "24", cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: npm ci --no-audit --no-fund
+        working-directory: web
+      - run: npm run lint && npx tsc --noEmit && npm test && npm run build
+        working-directory: web
+      - run: npm audit --omit=dev --audit-level=high
+        working-directory: web
+
+  image:
+    name: Image (build, secret scan, Trivy)
+    runs-on: ubuntu-latest
+    needs: [backend, web]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - run: docker build -t invoiceflow:ci .
+      - name: Secret scan inside the image
+        run: |
+          cid=$(docker create invoiceflow:ci); mkdir -p /tmp/rootfs
+          docker export "$cid" | tar -x -C /tmp/rootfs app 2>/dev/null || true
+          python3 scripts/secret_scan.py /tmp/rootfs; docker rm "$cid" >/dev/null
+      - uses: aquasecurity/trivy-action@0.28.0
+        with: { image-ref: invoiceflow:ci, severity: "CRITICAL,HIGH", exit-code: "1", ignore-unfixed: true }

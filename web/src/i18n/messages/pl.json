@@ -1,0 +1,17 @@
+{
+  "app.name": "InvoiceFlow",
+  "app.tagline": "Faktury na wejściu, czyste dane na wyjściu.",
+  "home.status": "Panele pojawią się w fazie 3. API działa pod {api}.",
+  "license.state.valid": "Licencja aktywna",
+  "license.state.grace": "Nie udało się odnowić licencji (okres karencji)",
+  "license.state.expired": "Licencja wygasła",
+  "license.state.unlicensed": "Brak licencji",
+  "license.state.invalid": "Nie udało się zweryfikować licencji",
+  "license.trial_days_left": "Okres próbny: pozostało {days} dni",
+  "license.open_page": "Otwórz stronę licencji",
+  "intake.paused": "Subskrypcja InvoiceFlow Twojego biura rachunkowego jest wstrzymana. Istniejące dokumenty pozostają dostępne.",
+  "license.state.core_not_included": "Licencja nie obejmuje InvoiceFlow",
+  "license.banner.core_not_included": "Ta licencja nie obejmuje InvoiceFlow (modułu podstawowego). Poproś wystawcę o dodanie modułu podstawowego lub kup InvoiceFlow w sklepie. Odbiór i przetwarzanie są wstrzymane; Twoje dane pozostają dostępne.",
+  "license.refresh.ok": "Licencja sprawdzona w hubie.",
+  "license.refresh.next": "Następne sprawdzenie możliwe o {time}."
+}

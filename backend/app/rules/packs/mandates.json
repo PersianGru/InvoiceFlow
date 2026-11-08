@@ -1,0 +1,230 @@
+{
+  "version": "2026.11",
+  "source": "National e-invoicing mandates as known 2026-11-05. 'planned' = announced, not yet law. TODO(legal): track changes quarterly; LT's B2B date is not legislated (2028 or ViDA 2030); EE's full B2B mandate for 2027 is a ministry intention; GR phase dates vary between sources.",
+  "mandates": [
+    {
+      "country": "BE",
+      "scope": "B2B domestic",
+      "from": "2026-01-01",
+      "network": "Peppol",
+      "format": "Peppol BIS 3.0 (EN 16931)",
+      "status": "live"
+    },
+    {
+      "country": "PL",
+      "scope": "B2B (large taxpayers)",
+      "from": "2026-02-01",
+      "network": "KSeF",
+      "format": "FA(3)",
+      "status": "live"
+    },
+    {
+      "country": "PL",
+      "scope": "B2B (all)",
+      "from": "2026-04-01",
+      "network": "KSeF",
+      "format": "FA(3)",
+      "status": "live"
+    },
+    {
+      "country": "FR",
+      "scope": "receive (all) / issue (large & mid)",
+      "from": "2026-09-01",
+      "network": "certified platforms (PDP)",
+      "format": "Factur-X, UBL, CII",
+      "status": "upcoming"
+    },
+    {
+      "country": "FR",
+      "scope": "issue (SME/micro)",
+      "from": "2027-09-01",
+      "network": "certified platforms (PDP)",
+      "format": "Factur-X, UBL, CII",
+      "status": "upcoming"
+    },
+    {
+      "country": "DE",
+      "scope": "B2B receive",
+      "from": "2025-01-01",
+      "network": "none (any channel)",
+      "format": "EN 16931 (XRechnung, ZUGFeRD)",
+      "status": "live"
+    },
+    {
+      "country": "DE",
+      "scope": "B2B issue (turnover > 800k)",
+      "from": "2027-01-01",
+      "network": "none",
+      "format": "EN 16931",
+      "status": "upcoming"
+    },
+    {
+      "country": "DE",
+      "scope": "B2B issue (all)",
+      "from": "2028-01-01",
+      "network": "none",
+      "format": "EN 16931",
+      "status": "upcoming"
+    },
+    {
+      "country": "ES",
+      "scope": "B2B (large)",
+      "from": "2027-10-01",
+      "network": "public platform / private",
+      "format": "Facturae / UBL / CII",
+      "status": "upcoming"
+    },
+    {
+      "country": "IT",
+      "scope": "B2B/B2C",
+      "from": "2019-01-01",
+      "network": "SdI",
+      "format": "FatturaPA",
+      "status": "live"
+    },
+    {
+      "country": "EU",
+      "scope": "intra-EU B2B digital reporting (ViDA)",
+      "from": "2030-07-01",
+      "network": "DRR",
+      "format": "EN 16931",
+      "status": "upcoming"
+    },
+    {
+      "country": "LV",
+      "scope": "B2G (invoices to budget institutions)",
+      "from": "2025-01-01",
+      "network": "eAddress / Peppol",
+      "format": "Peppol BIS Billing 3.0 (EN 16931)",
+      "status": "live"
+    },
+    {
+      "country": "LV",
+      "scope": "B2B domestic (voluntary from 2026-03-30)",
+      "from": "2028-01-01",
+      "network": "eAddress / Peppol access points; e-reporting to VID within 5 working days",
+      "format": "Peppol BIS Billing 3.0 (EN 16931)",
+      "status": "upcoming"
+    },
+    {
+      "country": "EE",
+      "scope": "B2G",
+      "from": "2019-07-01",
+      "network": "e-invoice operators / Peppol",
+      "format": "EN 16931",
+      "status": "live"
+    },
+    {
+      "country": "EE",
+      "scope": "B2B on the buyer's request (buyer registered as e-invoice recipient)",
+      "from": "2025-07-01",
+      "network": "e-invoice operators / Peppol",
+      "format": "EN 16931",
+      "status": "live"
+    },
+    {
+      "country": "EE",
+      "scope": "B2B domestic (all)",
+      "from": "2027-01-01",
+      "network": "e-invoice operators / Peppol",
+      "format": "EN 16931",
+      "status": "planned"
+    },
+    {
+      "country": "LT",
+      "scope": "B2G",
+      "from": "2024-01-01",
+      "network": "SABIS (Peppol access points accepted)",
+      "format": "Peppol BIS Billing 3.0 (EN 16931)",
+      "status": "live"
+    },
+    {
+      "country": "LT",
+      "scope": "B2B domestic",
+      "from": "2028-01-01",
+      "network": "five-corner model under discussion",
+      "format": "EN 16931",
+      "status": "planned"
+    },
+    {
+      "country": "HR",
+      "scope": "B2B domestic (VAT-registered; others from 2027-01-01)",
+      "from": "2026-01-01",
+      "network": "Fiskalizacija 2.0 (information intermediaries, e-reporting)",
+      "format": "EN 16931 (UBL 2.1 / CII)",
+      "status": "live"
+    },
+    {
+      "country": "RO",
+      "scope": "B2B domestic (clearance)",
+      "from": "2024-07-01",
+      "network": "RO e-Factura (SPV)",
+      "format": "UBL 2.1 RO_CIUS",
+      "status": "live"
+    },
+    {
+      "country": "GR",
+      "scope": "B2B domestic (turnover > 1 M EUR)",
+      "from": "2026-02-02",
+      "network": "myDATA (certified e-invoicing providers)",
+      "format": "EN 16931 (Peppol BIS)",
+      "status": "live"
+    },
+    {
+      "country": "GR",
+      "scope": "B2B domestic (all)",
+      "from": "2026-10-01",
+      "network": "myDATA (certified e-invoicing providers)",
+      "format": "EN 16931 (Peppol BIS)",
+      "status": "live"
+    },
+    {
+      "country": "HU",
+      "scope": "real-time reporting of every issued invoice (not an e-invoice mandate)",
+      "from": "2021-01-01",
+      "network": "NAV Online Számla (RTIR)",
+      "format": "NAV XML 3.0",
+      "status": "live"
+    },
+    {
+      "country": "HU",
+      "scope": "B2B e-invoices in the electricity and natural-gas sector",
+      "from": "2025-07-01",
+      "network": "none prescribed",
+      "format": "any structured format",
+      "status": "live"
+    },
+    {
+      "country": "SK",
+      "scope": "B2B and B2G domestic (voluntary during 2026)",
+      "from": "2027-01-01",
+      "network": "eFaktúra (e-reporting to the Financial Administration)",
+      "format": "EN 16931",
+      "status": "upcoming"
+    },
+    {
+      "country": "SI",
+      "scope": "B2B domestic",
+      "from": "2028-01-01",
+      "network": "e-invoice providers / Peppol",
+      "format": "e-SLOG 2.0 / EN 16931",
+      "status": "upcoming"
+    },
+    {
+      "country": "BG",
+      "scope": "B2G",
+      "from": "2019-11-01",
+      "network": "none prescribed",
+      "format": "EN 16931",
+      "status": "live"
+    },
+    {
+      "country": "DK",
+      "scope": "digital bookkeeping systems must send and receive e-invoices (no issuing mandate yet)",
+      "from": "2024-07-01",
+      "network": "NemHandel / Peppol",
+      "format": "OIOUBL / Peppol BIS 3.0",
+      "status": "live"
+    }
+  ]
+}

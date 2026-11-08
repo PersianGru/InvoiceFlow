@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "invoiceflow-backend"
+version = "0.1.0"
+description = "InvoiceFlow API and worker: automated invoice intake and processing for accounting firms."
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.5",
+  "sqlalchemy[asyncio]>=2.0",
+  "alembic>=1.13",
+  "psycopg[binary]>=3.2",
+  "cryptography>=43",
+  "httpx>=0.27",
+  "arq>=0.26",
+  "redis>=5",
+  "argon2-cffi>=23",
+  "pyotp>=2.9",
+  "python-multipart>=0.0.9",
+  "email-validator>=2",
+  "structlog>=24",
+  "qrcode>=7",
+  "jsonschema>=4.23",
+  "pypdf>=5",
+  "defusedxml>=0.7",
+  "Pillow>=10.4",
+  "numpy>=2",
+  "pytesseract>=0.3",
+  "boto3>=1.35",
+  "pypdfium2>=4.30",
+  "openpyxl>=3.1",
+  "fpdf2>=2.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio", "respx", "mypy", "ruff", "black", "pgserver", "pip-audit", "types-qrcode", "types-openpyxl", "types-PyYAML", "boto3-stubs[s3]", "moto[s3]>=5", "rapidocr>=3.0", "onnxruntime>=1.17"]
+# Built-in CPU engines: OCR without a system package, a small local model without a GPU.
+# llama-cpp-python has prebuilt CPU wheels: pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+cpu = ["rapidocr>=3.0", "onnxruntime>=1.17", "llama-cpp-python>=0.3"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["rules/packs/*.json"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "N", "ASYNC", "T20"]
+ignore = ["S101", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "T20", "E501", "ASYNC210"]
+"evalharness/*" = ["E501", "T20", "S311", "ASYNC240"]
+"alembic/*" = ["I", "E501"]
+"app/channels/texts.py" = ["E501"]  # message catalog: one line per text
+
+[tool.black]
+line-length = 110
+target-version = ["py312"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+exclude = ["alembic/", "tests/"]
+
+[[tool.mypy.overrides]]
+module = ["arq.*", "pgserver.*", "jsonschema.*", "pytesseract.*", "defusedxml.*", "fpdf.*", "moto.*", "pypdfium2.*", "rapidocr.*", "llama_cpp.*", "onnxruntime.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]

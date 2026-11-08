@@ -1,0 +1,125 @@
+name: Release
+
+# Push a tag v<version> (the newest version heading in CHANGELOG.md) to publish the product image to the
+# GitHub Container Registry and create the GitHub release with the customer compose file and .env template.
+#   git tag v0.10.1 && git push origin v0.10.1
+# Needs one repository secret, LICENSE_INSTALLATION_KEY (ik1.<generation>.<43 chars>): it is built into
+# the image (it seals installation ids) and is never stored in the repository.
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+
+permissions:
+  contents: write # create the release
+  packages: write # push ghcr.io/persiangru/invoiceflow
+
+env:
+  IMAGE: ghcr.io/persiangru/invoiceflow
+
+jobs:
+  image:
+    name: Build, scan and publish the image
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version from CHANGELOG.md (a tag must match it)
+        id: v
+        run: |
+          v=$(grep -oE '^## [0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | head -1 | cut -d' ' -f2)
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v${v}" ]; then
+            echo "tag ${GITHUB_REF_NAME} does not match CHANGELOG.md version ${v}"; exit 1
+          fi
+          grep -q "INVOICEFLOW_VERSION:-${v}}" deploy/docker-compose.yml \
+            || { echo "deploy/docker-compose.yml does not default to ${v}"; exit 1; }
+          echo "version=${v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Repository secret scan
+        run: python scripts/secret_scan.py
+
+      - name: Built-in installation key (repository secret)
+        env:
+          KEY: ${{ secrets.LICENSE_INSTALLATION_KEY }}
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+          key = os.environ.get("KEY", "").strip()
+          if not re.fullmatch(r"ik1\.[1-9]\.[A-Za-z0-9_-]{43}", key):
+              sys.exit("set the repository secret LICENSE_INSTALLATION_KEY (ik1.<generation>.<43 chars>)")
+          p = "backend/app/licensing/project.py"
+          src = open(p, encoding="utf-8").read()
+          new, n = re.subn(r'PROJECT_INSTALLATION_KEY = ""', f'PROJECT_INSTALLATION_KEY = "{key}"', src)
+          if n != 1:
+              sys.exit("PROJECT_INSTALLATION_KEY placeholder not found")
+          open(p, "w", encoding="utf-8", newline="\n").write(new)
+          PY
+
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the image (not pushed yet)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: invoiceflow:release
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.v.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Secret scan inside the image
+        run: |
+          cid=$(docker create invoiceflow:release); mkdir -p /tmp/rootfs
+          docker export "$cid" | tar -x -C /tmp/rootfs app 2>/dev/null || true
+          python3 scripts/secret_scan.py /tmp/rootfs; docker rm "$cid" >/dev/null
+      - uses: aquasecurity/trivy-action@0.28.0
+        with: { image-ref: invoiceflow:release, severity: "CRITICAL,HIGH", exit-code: "1", ignore-unfixed: true }
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push ${{ env.IMAGE }}:${{ steps.v.outputs.version }} and :latest
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.v.outputs.version }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.v.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+  release:
+    name: GitHub release
+    needs: image
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Release notes and customer files
+        env:
+          VERSION: ${{ needs.image.outputs.version }}
+        run: |
+          mkdir release
+          awk -v v="$VERSION" '$0 ~ "^## " v {f=1; next} /^## /{f=0} f' CHANGELOG.md > release/notes.md
+          cp deploy/docker-compose.yml release/docker-compose.yml
+          cp deploy/.env.example release/env.example
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: InvoiceFlow ${{ needs.image.outputs.version }}
+          body_path: release/notes.md
+          files: |
+            release/docker-compose.yml
+            release/env.example

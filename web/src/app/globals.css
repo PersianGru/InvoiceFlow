@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Brand tokens shared with 21cel.com, the store and the mobile app: amber accent, dark surfaces,
+   Segoe/system type, generous radii. Tailwind utilities keep working; the tokens recolour the
+   accents and the dark theme. */
+:root {
+  color-scheme: light dark;
+  --brand-amber: #f5a524;
+  --brand-amber-2: #ffc861;
+  --brand-amber-deep: #d9820f;
+  --brand-amber-soft: rgba(245, 165, 36, 0.12);
+  --brand-on-amber: #14110a;
+  --brand-ok: #6ee7a0;
+  --brand-bad: #ff8a8a;
+  --brand-bg: #0d0f12;
+  --brand-surface: #14171c;
+  --brand-surface-2: #1a1e24;
+  --brand-text: #edeef0;
+  --brand-dim: #9aa0aa;
+  --brand-line: rgba(255, 255, 255, 0.08);
+  --brand-font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "SF Pro Text", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --brand-font-mono: ui-monospace, "Cascadia Code", "JetBrains Mono", "SF Mono", Consolas, Menlo, monospace;
+}
+
+@theme inline {
+  --color-blue-700: var(--brand-amber-deep);
+  --color-blue-800: #b86d0a;
+  --color-blue-600: var(--brand-amber);
+  --color-blue-500: var(--brand-amber-2);
+  --color-blue-400: var(--brand-amber-2);
+  --color-blue-300: var(--brand-amber-line, rgba(245, 165, 36, 0.35));
+  --color-blue-100: var(--brand-amber-soft);
+  --color-blue-50: var(--brand-amber-soft);
+  --color-neutral-950: var(--brand-bg);
+  --color-neutral-900: var(--brand-surface);
+  --color-neutral-800: var(--brand-surface-2);
+  --font-sans: var(--brand-font-sans);
+  --font-mono: var(--brand-font-mono);
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+html:not(.dark) {
+  color-scheme: light;
+}
+
+body {
+  font-family: var(--brand-font-sans);
+}
+
+html.dark body {
+  background-color: var(--brand-bg);
+  color: var(--brand-text);
+}
+
+/* Visible focus for keyboard users everywhere (WCAG 2.4.7) */
+:focus-visible {
+  outline: 2px solid var(--brand-amber);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

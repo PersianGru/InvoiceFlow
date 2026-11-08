@@ -1,0 +1,36 @@
+# Secrets and machine-local files: never committed
+.env
+.env.*
+!.env.example
+.local/
+*.pem
+*.key
+*.lic
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Node
+node_modules/
+web/.next/
+web/out/
+web/next-env.d.ts
+
+# Data and logs
+data/
+*.log
+*.sqlite3
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+.expo/

@@ -1,0 +1,17 @@
+{
+  "app.name": "InvoiceFlow",
+  "app.tagline": "Facturen erin, schone data eruit.",
+  "home.status": "De dashboards komen in fase 3. De API draait op {api}.",
+  "license.state.valid": "Gelicentieerd",
+  "license.state.grace": "Licentie kon niet worden vernieuwd (respijtperiode)",
+  "license.state.expired": "Licentie verlopen",
+  "license.state.unlicensed": "Niet gelicentieerd",
+  "license.state.invalid": "Licentie kon niet worden gecontroleerd",
+  "license.trial_days_left": "Proefperiode: nog {days} dag(en)",
+  "license.open_page": "Licentiepagina openen",
+  "intake.paused": "Het InvoiceFlow-abonnement van uw accountant is gepauzeerd. Bestaande documenten blijven beschikbaar.",
+  "license.state.core_not_included": "Licentie bevat InvoiceFlow niet",
+  "license.banner.core_not_included": "Deze licentie bevat InvoiceFlow (de kernmodule) niet. Vraag de uitgever om de kernmodule toe te voegen, of koop InvoiceFlow in de winkel. Ontvangst en verwerking zijn gepauzeerd; uw gegevens blijven beschikbaar.",
+  "license.refresh.ok": "Licentie gecontroleerd bij de hub.",
+  "license.refresh.next": "De volgende controle is mogelijk om {time}."
+}

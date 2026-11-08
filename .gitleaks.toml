@@ -1,0 +1,76 @@
+# gitleaks configuration: the default rules plus the 21CEL-specific secrets.
+title = "InvoiceFlow secret scan"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "21cel-api-key"
+description = "21CEL hub API key"
+regex = '''21c_sk_[A-Za-z0-9_-]{6,}'''
+keywords = ["21c_sk_"]
+
+[[rules]]
+id = "21cel-access-token"
+description = "21CEL hub access token"
+regex = '''21c_at_[A-Za-z0-9_.-]{6,}'''
+keywords = ["21c_at_"]
+
+[[rules]]
+id = "21cel-webhook-secret"
+description = "21CEL webhook secret"
+regex = '''whsec_[A-Za-z0-9_-]{6,}'''
+keywords = ["whsec_"]
+
+[[rules]]
+id = "21cel-installation-key"
+description = "21CEL installation key (ships in the product but never in a public repo)"
+regex = '''ik1\.[1-9]\.[A-Za-z0-9_-]{43}'''
+keywords = ["ik1."]
+
+[[rules]]
+id = "invoiceflow-api-key"
+description = "InvoiceFlow public-API key"
+regex = '''ivfk_[a-z0-9]{8}_[a-z0-9]{16,64}'''
+keywords = ["ivfk_"]
+
+[[rules]]
+id = "invoiceflow-webhook-secret"
+description = "InvoiceFlow webhook endpoint secret"
+regex = '''ivfwh_[A-Za-z0-9]{16,}'''
+keywords = ["ivfwh_"]
+
+[[rules]]
+id = "telegram-bot-token"
+description = "Telegram bot token"
+regex = '''\b\d{8,10}:[A-Za-z0-9_-]{35}\b'''
+
+[[rules]]
+id = "meta-access-token"
+description = "Meta/WhatsApp access token"
+regex = '''\bEAA[A-Za-z0-9]{20,}\b'''
+keywords = ["EAA"]
+
+[[rules]]
+id = "private-key-block"
+description = "PEM private key"
+regex = '''-----BEGIN [A-Z ]*PRIVATE KEY-----'''
+keywords = ["PRIVATE KEY"]
+
+[[rules]]
+id = "invoiceflow-license-key"
+description = "A formatted InvoiceFlow license key"
+regex = '''\bIVF-(?:[0-9A-Z]{5}-){4,7}[0-9A-Z]{5}\b'''
+keywords = ["IVF-"]
+
+[allowlist]
+description = "The scanner's own rule files"
+paths = [
+  '''\.gitleaks\.toml''',
+  '''scripts/secret_scan\.py''',
+]
+
+[[rules]]
+id = "openai-api-key"
+description = "OpenAI-style API key"
+regex = '''\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{32,}\b'''
