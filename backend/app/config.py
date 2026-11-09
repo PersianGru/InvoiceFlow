@@ -98,7 +98,8 @@ class Settings(BaseSettings):
     local_openai_base_url: str | None = None  # e.g. http://lmstudio:1234/v1
     local_openai_api_key: str | None = None
     local_openai_model: str = ""
-    local_openai_vision: bool = False
+    # send photos and scans to a vision model (qwen3-vl, llava…); a text-only server falls back to text
+    local_openai_vision: bool = True
     # reasoning models (qwen3, qwen3-vl…) answer ~8x faster with thinking off; same extraction
     local_openai_thinking: bool = False
     # Cloud LLM: anthropic (ANTHROPIC_API_KEY), openai, mistral or any OpenAI-compatible endpoint
@@ -109,7 +110,7 @@ class Settings(BaseSettings):
     cloud_openai_compat_base_url: str | None = None
     cloud_openai_compat_api_key: str | None = None
     cloud_openai_compat_model: str = ""
-    cloud_vision: bool = True  # send page images to a vision-capable cloud model when the OCR text is weak
+    cloud_vision: bool = True  # send photos, scans and weak pages to a vision-capable cloud model
     vies_enabled: bool = True
     ecb_rates_enabled: bool = True
     queue_backend: Literal["arq", "inline"] = "arq"

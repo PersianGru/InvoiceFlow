@@ -17,6 +17,8 @@ AI_FIELDS = (
     "local_openai_base_url",
     "local_openai_model",
     "local_openai_api_key",
+    "local_openai_vision",
+    "local_openai_thinking",
     "cloud_provider",
     "anthropic_api_key",
     "cloud_model",
@@ -26,6 +28,7 @@ AI_FIELDS = (
     "cloud_openai_compat_base_url",
     "cloud_openai_compat_api_key",
     "cloud_openai_compat_model",
+    "cloud_vision",
 )
 CHOICES = {
     "local_llm": ("auto", "ollama", "llamacpp", "openai_compat", "none"),

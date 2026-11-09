@@ -53,7 +53,7 @@ The variables below have built-in defaults and can be added to `.env` when neede
 | Licensing | `LICENSE_KEY_PREFIX` (IVF), `LICENSE_JWKS_FETCH` (true), `LICENSE_SEND_INSTANCE_NAME` (false) |
 | Storage | `S3_OBJECT_LOCK` ("", governance, compliance), `VIRUS_SCAN_REQUIRED` (required in production) |
 | OCR | `OCR_ENGINE` (auto, tesseract, rapidocr, none), `OCR_LANGUAGES`, `OCR_CLOUD` (none, mistral), `MISTRAL_OCR_MODEL` |
-| Local model | `LOCAL_LLM` (auto, llamacpp, ollama, openai_compat, none), `LLAMACPP_CONTEXT` (8192), `LLAMACPP_AUTO_DOWNLOAD` (true), `OLLAMA_URL`, `OLLAMA_MODEL`, `LOCAL_OPENAI_BASE_URL`, `LOCAL_OPENAI_API_KEY`, `LOCAL_OPENAI_MODEL`, `LOCAL_OPENAI_VISION`, `LOCAL_OPENAI_THINKING` (false) |
+| Local model | `LOCAL_LLM` (auto, llamacpp, ollama, openai_compat, none), `LLAMACPP_CONTEXT` (8192), `LLAMACPP_AUTO_DOWNLOAD` (true), `OLLAMA_URL`, `OLLAMA_MODEL`, `LOCAL_OPENAI_BASE_URL`, `LOCAL_OPENAI_API_KEY`, `LOCAL_OPENAI_MODEL`, `LOCAL_OPENAI_VISION` (true), `LOCAL_OPENAI_THINKING` (false); all of them are also set under Platform → Settings → AI engines |
 | Cloud AI | `CLOUD_PROVIDER` (auto), `CLOUD_MODEL`, `OPENAI_MODEL`, `OPENAI_BASE_URL`, `MISTRAL_MODEL`, `CLOUD_OPENAI_COMPAT_BASE_URL`, `CLOUD_OPENAI_COMPAT_API_KEY`, `CLOUD_OPENAI_COMPAT_MODEL`, `CLOUD_VISION` (true) |
 | Validation | `VIES_ENABLED` (true), `ECB_RATES_ENABLED` (true) |
 | Sessions and API | `SESSION_TTL_SECONDS` (43200), `PASSWORD_MIN_LENGTH` (12), `LOGIN_LOCK_THRESHOLD` (5), `LOGIN_LOCK_MINUTES` (15), `LOGIN_IP_RATE_PER_MINUTE` (20), `API_ACCESS_TOKEN_TTL_SECONDS` (3600), `API_DEFAULT_RATE_LIMIT_PER_MINUTE` (120), `WEBHOOK_TIMEOUT_SECONDS` (10) |

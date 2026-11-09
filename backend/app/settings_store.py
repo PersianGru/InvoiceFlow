@@ -94,6 +94,8 @@ SECTIONS: dict[str, SectionSpec] = {
                 FieldSpec("local_openai_base_url"),
                 FieldSpec("local_openai_model"),
                 FieldSpec("local_openai_api_key", "secret"),
+                FieldSpec("local_openai_vision", "bool", True),
+                FieldSpec("local_openai_thinking", "bool", False),
                 FieldSpec("cloud_provider", default="auto"),
                 FieldSpec("anthropic_api_key", "secret"),
                 FieldSpec("cloud_model"),
@@ -103,6 +105,7 @@ SECTIONS: dict[str, SectionSpec] = {
                 FieldSpec("cloud_openai_compat_base_url"),
                 FieldSpec("cloud_openai_compat_api_key", "secret"),
                 FieldSpec("cloud_openai_compat_model"),
+                FieldSpec("cloud_vision", "bool", True),
             ),
             firm_overridable=False,
         ),
@@ -377,6 +380,8 @@ ENV_IMPORTS: dict[str, dict[str, str]] = {
         "local_openai_base_url": "local_openai_base_url",
         "local_openai_model": "local_openai_model",
         "local_openai_api_key": "local_openai_api_key",
+        "local_openai_vision": "local_openai_vision",
+        "local_openai_thinking": "local_openai_thinking",
         "cloud_provider": "cloud_provider",
         "anthropic_api_key": "anthropic_api_key",
         "cloud_model": "cloud_model",
@@ -386,6 +391,7 @@ ENV_IMPORTS: dict[str, dict[str, str]] = {
         "cloud_openai_compat_base_url": "cloud_openai_compat_base_url",
         "cloud_openai_compat_api_key": "cloud_openai_compat_api_key",
         "cloud_openai_compat_model": "cloud_openai_compat_model",
+        "cloud_vision": "cloud_vision",
     },
 }
 

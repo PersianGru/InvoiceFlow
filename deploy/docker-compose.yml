@@ -9,7 +9,7 @@ name: invoiceflow
 
 x-backend-env: &backend-env
   APP_ENV: ${APP_ENV:-production}
-  APP_VERSION: ${APP_VERSION:-0.11.1}
+  APP_VERSION: ${APP_VERSION:-0.11.2}
   SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY (32+ random characters)}
   MASTER_KEY: ${MASTER_KEY:?set MASTER_KEY (base64url of 32 random bytes)}
   DATABASE_URL: postgresql+psycopg://invoiceflow:${APP_DB_PASSWORD:?set APP_DB_PASSWORD}@postgres:5432/invoiceflow
@@ -65,7 +65,7 @@ x-backend-env: &backend-env
   LOCAL_OPENAI_BASE_URL: ${LOCAL_OPENAI_BASE_URL:-}
   LOCAL_OPENAI_API_KEY: ${LOCAL_OPENAI_API_KEY:-}
   LOCAL_OPENAI_MODEL: ${LOCAL_OPENAI_MODEL:-}
-  LOCAL_OPENAI_VISION: ${LOCAL_OPENAI_VISION:-false}
+  LOCAL_OPENAI_VISION: ${LOCAL_OPENAI_VISION:-true}
   LOCAL_OPENAI_THINKING: ${LOCAL_OPENAI_THINKING:-false}
   CLOUD_PROVIDER: ${CLOUD_PROVIDER:-auto}
   ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -165,14 +165,14 @@ services:
       retries: 30
 
   migrate:
-    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.11.1}}
+    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.11.2}}
     command: ["alembic", "upgrade", "head"]
     environment: *backend-env
     depends_on:
       postgres: { condition: service_healthy }
 
   api:
-    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.11.1}}
+    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.11.2}}
     restart: unless-stopped
     environment: *backend-env
     volumes:
@@ -184,7 +184,7 @@ services:
       clamav: { condition: service_healthy }
 
   worker:
-    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.11.1}}
+    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.11.2}}
     restart: unless-stopped
     command: ["arq", "app.workers.main.WorkerSettings"]
     environment: *backend-env
@@ -205,7 +205,7 @@ services:
   # Backups and restores: their own queue, one job at a time, low priority, limited CPU and
   # memory, so a large backup never slows the dashboard or document processing down.
   backup:
-    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.11.1}}
+    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.11.2}}
     restart: unless-stopped
     command: ["arq", "app.workers.backup.WorkerSettings"]
     environment: *backend-env
@@ -226,7 +226,7 @@ services:
       redis: { condition: service_healthy }
 
   web:
-    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.11.1}}
+    image: ${IMAGE:-ghcr.io/persiangru/invoiceflow:${INVOICEFLOW_VERSION:-0.11.2}}
     restart: unless-stopped
     working_dir: /app/web
     command: ["node", "server.js"]

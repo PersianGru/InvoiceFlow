@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.2 — photos go to the vision model (2026-11-10)
+
+- Your own local model with vision (qwen3-vl and the like): photos and scans are now always sent as images
+  together with the OCR text, and the model reads the values from the image. Before, the image was sent
+  only when OCR looked uncertain, so a receipt photo could reach the model as garbled OCR text.
+- Vision is on by default (`LOCAL_OPENAI_VISION=true`). A model or server that cannot take images is asked
+  again with the text only, so text-only models keep working.
+- Platform → Settings → AI engines has switches for vision, thinking and cloud vision.
+
 ## 0.11.1 — invite and reset links (2026-11-09)
 
 - Fix: invite and password-reset links showed "This link has expired or was already used" even when they

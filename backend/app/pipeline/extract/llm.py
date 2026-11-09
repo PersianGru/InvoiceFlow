@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import logging
 import re
 import threading
 import time
@@ -24,6 +25,8 @@ import httpx
 
 from app.pipeline.types import DocumentText, ExtractionContext, ExtractionResult, Word, field_meta
 from app.schemas.invoice import Invoice, SourceInfo, ValueSource
+
+log = logging.getLogger("invoiceflow.pipeline.llm")
 
 PROMPT_VERSION = "extract-v1"
 
@@ -707,7 +710,10 @@ _NO_THINK = {"reasoning_effort": "none", "think": False}
 class OpenAICompatibleProvider:
     """Any ``/chat/completions`` endpoint (OpenAI, Mistral, Azure, Groq, vLLM, LM Studio, LocalAI,
     Ollama behind a gateway such as Bifrost or LiteLLM…). ``external`` says whether data leaves the
-    deployment; ``vision`` adds the page images when the OCR text is weak; ``thinking=False`` asks a
+    deployment; ``vision`` sends the page images of photos and scans (any OCR-read document) and of
+    documents whose text is weak, so a vision model reads the page itself instead of OCR guesses; a
+    server that rejects images is asked once more without them and not sent images again;
+    ``thinking=False`` asks a
     reasoning model (qwen3, qwen3-vl, deepseek-r1…) to answer directly: measured with qwen3-vl:8b on a
     receipt image, 89 s with thinking and 10 s without, same fields read. A server that rejects the
     extra parameters is retried once without them and not asked again."""
@@ -737,14 +743,25 @@ class OpenAICompatibleProvider:
     async def available(self) -> bool:
         return bool(self.model) and (bool(self.api_key) or not self.external)
 
+    def wants_images(self, text: DocumentText) -> bool:
+        """Photos and scans (OCR text) always, other documents only when their text is weak."""
+        if not (self.vision and text.page_images):
+            return False
+        weak = not text.words or text.mean_confidence < 0.6
+        return text.source.startswith("ocr") or weak
+
     def _messages(self, text: DocumentText, ctx: ExtractionContext) -> list[dict[str, Any]]:
         # the key template keeps every model on our field names (json_object mode alone carries no schema)
         prompt = template_prompt(text, ctx, _MAX_TEXT)
         content: Any = prompt
-        weak = not text.words or text.mean_confidence < 0.6
-        if self.vision and text.page_images and weak:
+        if self.wants_images(text):
             content = [
-                {"type": "text", "text": prompt + "\n\nThe page images are attached; read them directly."}
+                {
+                    "type": "text",
+                    "text": prompt
+                    + "\n\nThe page images are attached. Read every value from the images; the text "
+                    "above is machine OCR and may be wrong.",
+                }
             ]
             for png in text.page_images:
                 content.append(
@@ -772,9 +789,16 @@ class OpenAICompatibleProvider:
             body.update(_NO_THINK)
         last: httpx.Response | None = None
         retried = False
-        for _ in range(3):
+        with_images = self.wants_images(text)
+        for _ in range(4):
             r = await self._http.post(f"{self.base_url}/chat/completions", headers=headers, json=body)
             last = r
+            if r.status_code == 400 and with_images:
+                # a text-only model or server: read the OCR text instead and stop sending images
+                log.warning("%s rejected page images (400); vision off for this engine", self.label)
+                self.vision = with_images = False
+                body["messages"] = self._messages(text, ctx)
+                continue
             if r.status_code == 400 and not self.thinking and "think" in body:
                 self.thinking = True  # this server does not know the switch; stop sending it
                 for k in _NO_THINK:

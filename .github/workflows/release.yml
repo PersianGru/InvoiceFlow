@@ -2,7 +2,7 @@ name: Release
 
 # Push a tag v<version> (the newest version heading in CHANGELOG.md) to publish the product image to the
 # GitHub Container Registry and create the GitHub release with the customer compose file and .env template.
-#   git tag v0.11.1 && git push origin v0.11.1
+#   git tag v0.11.2 && git push origin v0.11.2
 # Needs one repository secret, LICENSE_INSTALLATION_KEY (ik1.<generation>.<43 chars>): it is built into
 # the image (it seals installation ids) and is never stored in the repository.
 
