@@ -22,3 +22,12 @@
   single sign-on.
 - Licensing per accounting firm: plans by size (Starter, Business, Firm, Unlimited), monthly or yearly,
   and a limited free trial.
+
+## 0.10.3 — faster local reasoning models (2026-11-09)
+
+- Your own local model through an OpenAI-compatible server or gateway: `LOCAL_OPENAI_THINKING=false` (the
+  default) makes reasoning models such as qwen3-vl answer without a thinking phase; a receipt went from
+  89 s to 10 s with qwen3-vl:8b. Servers that do not know the switch are retried without it.
+- Answers that a gateway returns in the reasoning field are read, and the model is given InvoiceFlow's
+  field template, so local models fill the right fields.
+- `deploy/.env.example` lists the own-local-model variables (`LOCAL_OPENAI_*`).

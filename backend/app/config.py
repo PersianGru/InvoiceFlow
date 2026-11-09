@@ -99,6 +99,8 @@ class Settings(BaseSettings):
     local_openai_api_key: str | None = None
     local_openai_model: str = ""
     local_openai_vision: bool = False
+    # reasoning models (qwen3, qwen3-vl…) answer ~8x faster with thinking off; same extraction
+    local_openai_thinking: bool = False
     # Cloud LLM: anthropic (ANTHROPIC_API_KEY), openai, mistral or any OpenAI-compatible endpoint
     cloud_provider: Literal["auto", "anthropic", "openai", "mistral", "openai_compat", "none"] = "auto"
     openai_api_key: str | None = None

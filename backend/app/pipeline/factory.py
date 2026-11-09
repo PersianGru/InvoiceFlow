@@ -87,6 +87,7 @@ def build_local_llm(settings: Settings, *, download_models: bool = False) -> Ext
             settings.local_openai_model,
             external=False,
             vision=settings.local_openai_vision,
+            thinking=settings.local_openai_thinking,
         )
     if choice in ("auto", "llamacpp"):
         provider = LlamaCppProvider(
