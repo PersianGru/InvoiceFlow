@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+import string
 from pathlib import Path
 
 import pyrage
@@ -21,7 +22,8 @@ SECRET_HRP = "age-secret-key-"  # noqa: S105 - the bech32 prefix of age keys
 # the password is 32 random characters (~187 bits), so one fixed salt is enough and an archive
 # opens with the password alone, also on another installation
 PASSWORD_SALT = "v1"  # noqa: S105 - not a secret
-PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"  # noqa: S105
+# letters and digits without the look-alikes I, O, l, 0 and 1
+PASSWORD_ALPHABET = "".join(c for c in string.ascii_letters + string.digits if c not in "IOl01")
 
 
 def _polymod(values: list[int]) -> int:
