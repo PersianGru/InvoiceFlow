@@ -79,6 +79,62 @@ export interface User {
   client_company_id: string | null;
   locale: string;
   totp_enabled: boolean;
+  status?: "active" | "invited" | "deactivated" | "deleted";
+  mfa_setup_required?: boolean;
+  acting_firm_id?: string | null;
+  recovery_codes_left?: number;
+  created_at?: string | null;
+  last_login_at?: string | null;
+}
+
+export interface InviteOut {
+  user: User;
+  link: string;
+  email_sent: boolean;
+  expires_at: string;
+}
+
+export interface Tombstone {
+  id: string;
+  user_id: string;
+  label: string;
+  reason: string;
+  deleted_by_user_id: string | null;
+  deleted_at: string;
+  erase_after: string;
+}
+
+export interface PlatformFirmRow {
+  id: string;
+  name: string;
+  country: string;
+  is_active: boolean;
+  deleted_at: string | null;
+  license_state: string;
+  key_hint: string | null;
+  hub_error: string | null;
+  users: number;
+  client_companies: number;
+  created_at: string;
+  installation_id_grouped: string;
+  last_backup_at: string | null;
+  inbound_domain: string | null;
+}
+
+export interface PlatformOverview {
+  firms: PlatformFirmRow[];
+  firm_count: number;
+  max_firms: number;
+  platform_license_state: string;
+  platform_firm_id: string;
+  health: Record<string, string | boolean>;
+}
+
+export interface FirmCreated {
+  firm: PlatformFirmRow;
+  owner: User;
+  invite_link: string;
+  email_sent: boolean;
 }
 
 export interface Firm {
@@ -251,6 +307,8 @@ export interface ClientCompany {
   peppol_id?: string | null;
   tax_number?: string | null;
   is_active: boolean;
+  intake_paused?: Record<string, boolean>;
+  retired_addresses?: Array<{ address: string; retired_at: string | null; grace_until: string | null; reason: string }>;
 }
 
 export interface Supplier {
@@ -353,6 +411,10 @@ export interface ApiKeyRow {
   last_used_at: string | null;
   expires_at: string | null;
   revoked_at: string | null;
+  client_company_ids?: string[];
+  allowed_cidrs?: string[];
+  description?: string;
+  last_used_ip?: string | null;
 }
 
 export interface WebhookEndpoint {
@@ -365,6 +427,7 @@ export interface WebhookEndpoint {
   disabled_at: string | null;
   disabled_reason: string | null;
   created_at: string;
+  client_company_ids?: string[];
 }
 
 export interface WebhookDelivery {
@@ -401,6 +464,10 @@ export interface SenderMapping {
   paired_at: string | null;
   last_seen_at: string | null;
   created_at: string;
+  scope?: "person" | "chat";
+  accept_from?: "anyone" | "paired";
+  bot_id?: string | null;
+  active?: boolean;
 }
 
 export interface ChannelMessage {

@@ -12,7 +12,7 @@ import smtplib
 import unicodedata
 from email import message_from_bytes, policy
 from email.message import EmailMessage
-from email.utils import parseaddr
+from email.utils import getaddresses, parseaddr
 from typing import Any
 
 from app.channels.base import InboundFile, InboundMessage, normalise_email
@@ -49,6 +49,39 @@ def _first_to(value: Any) -> str | None:
     return parseaddr(str(value))[1].lower() or str(value).lower()
 
 
+RECIPIENT_HEADERS = ("X-Original-To", "Delivered-To", "Envelope-To", "X-Forwarded-To", "To", "Cc")
+
+
+def _addresses(values: list[str]) -> list[str]:
+    out: list[str] = []
+    for _name, addr in getaddresses([str(v) for v in values if v]):
+        a = addr.strip().lower()
+        if a and "@" in a and a not in out:
+            out.append(a)
+    return out
+
+
+def _json_addresses(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        out: list[str] = []
+        for v in value:
+            out.extend(_json_addresses(v))
+        return out
+    if isinstance(value, dict):
+        return _json_addresses(value.get("email") or value.get("address"))
+    return _addresses([str(value)])
+
+
+def _dedupe(values: list[str]) -> list[str]:
+    out: list[str] = []
+    for v in values:
+        if v not in out:
+            out.append(v)
+    return out
+
+
 def parse_inbound_json(payload: dict[str, Any]) -> InboundMessage:
     """A generic inbound-email webhook body: ``from``, ``to``, ``subject``, ``text``/``html``,
     ``attachments: [{name|filename, content_type, content (base64)}]``, ``message_id``."""
@@ -57,6 +90,8 @@ def parse_inbound_json(payload: dict[str, Any]) -> InboundMessage:
         display, sender_raw = str(sender_raw.get("name") or ""), str(sender_raw.get("email") or "")
     else:
         display, sender_raw = parseaddr(str(sender_raw))
+    raw_envelope = payload.get("envelope")
+    envelope: dict[str, Any] = raw_envelope if isinstance(raw_envelope, dict) else {}
     text = payload.get("text") or payload.get("text_body") or payload.get("plain")
     if not text and payload.get("html"):
         text = html_to_text(str(payload["html"]))
@@ -79,6 +114,12 @@ def parse_inbound_json(payload: dict[str, Any]) -> InboundMessage:
         subject=str(payload.get("subject") or "") or None,
         to_address=_first_to(payload.get("to") or payload.get("recipient")),
         files=files,
+        recipients=_dedupe(
+            _json_addresses(envelope.get("to"))
+            + _json_addresses(payload.get("recipient"))
+            + _json_addresses(payload.get("to"))
+            + _json_addresses(payload.get("cc"))
+        ),
     )
 
 
@@ -111,6 +152,11 @@ def parse_mime(raw: bytes) -> InboundMessage:
             html_body = part.get_content()
     text = text_body or (html_to_text(html_body) if html_body else None)
     to_value = str(m.get("X-Original-To") or m.get("Delivered-To") or m.get("To") or "")
+    recipients: list[str] = []
+    for header in RECIPIENT_HEADERS:
+        for a in _addresses([str(v) for v in (m.get_all(header) or [])]):
+            if a not in recipients:
+                recipients.append(a)
     return InboundMessage(
         channel=DocumentChannel.email,
         sender=normalise_email(addr),
@@ -120,6 +166,7 @@ def parse_mime(raw: bytes) -> InboundMessage:
         subject=str(m.get("Subject") or "") or None,
         to_address=parseaddr(to_value)[1].lower() or None,
         files=files,
+        recipients=recipients,
     )
 
 

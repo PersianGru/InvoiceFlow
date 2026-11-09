@@ -39,3 +39,20 @@ class LegalEntity(Base):
     tax_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     address: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class InboundAddress(Base):
+    """A retired inbound address: never reissued; optional grace for known senders."""
+
+    __tablename__ = "inbound_addresses"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    firm_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("firms.id", ondelete="CASCADE"), index=True)
+    client_company_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("client_companies.id", ondelete="CASCADE"), index=True
+    )
+    local_part: Mapped[str] = mapped_column(String(64), unique=True)
+    retired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    grace_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reason: Mapped[str] = mapped_column(String(500), default="")
+    retired_by_user_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)

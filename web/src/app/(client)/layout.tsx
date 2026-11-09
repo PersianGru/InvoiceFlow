@@ -16,6 +16,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (ready && !user) router.replace("/login");
+    else if (ready && user?.mfa_setup_required) router.replace("/setup-2fa");
   }, [ready, user, router]);
 
   if (!ready || !user) {

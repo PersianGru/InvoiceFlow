@@ -1,9 +1,10 @@
 "use client";
 import { useState, type FormEvent } from "react";
 
+import { BotsCard } from "@/components/bots-card";
 import { Badge, Button, Card, Field, Input, Notice, Select } from "@/components/ui";
 import { formatDateTime } from "@/i18n";
-import { ApiError, API_URL, del, get, post, type ChannelStatus, type ClientCompany, type SenderMapping } from "@/lib/api";
+import { ApiError, API_URL, del, get, patch, post, type ChannelStatus, type ClientCompany, type SenderMapping } from "@/lib/api";
 import { useApp } from "@/lib/app-context";
 import { useFetch } from "@/lib/use-fetch";
 
@@ -99,8 +100,33 @@ export default function ChannelsPage() {
                 {(mappings.data ?? []).map((m) => (
                   <tr key={m.id} className="border-t border-neutral-100 dark:border-neutral-800">
                     <td className="p-2">{clientName.get(m.client_company_id) ?? "…"}</td>
-                    <td className="p-2">{m.channel}</td>
-                    <td className="p-2 font-mono text-xs">{m.identity ?? (m.pairing_code ? `${t("channels.code")} ${m.pairing_code}` : "—")}</td>
+                    <td className="p-2">
+                      {m.channel}
+                      {m.scope === "chat" ? (
+                        <span className="ml-1">
+                          <Badge tone="info">{t("channels.chat")}</Badge>
+                        </span>
+                      ) : null}
+                      {m.active === false ? (
+                        <span className="ml-1">
+                          <Badge tone="warning">{t("channels.inactive")}</Badge>
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="p-2 font-mono text-xs">
+                      {m.scope === "chat" && m.display_name ? <span className="font-sans">{m.display_name} · </span> : null}
+                      {m.identity ?? (m.pairing_code ? `${t("channels.code")} ${m.pairing_code}` : "—")}
+                      {m.scope === "chat" ? (
+                        <label className="mt-1 flex items-center gap-1 font-sans">
+                          <input
+                            type="checkbox"
+                            checked={m.accept_from === "paired"}
+                            onChange={(e) => run(() => patch(`/api/v1/sender-mappings/${m.id}`, { accept_from: e.target.checked ? "paired" : "anyone" }), t("common.saved"))}
+                          />
+                          {t("channels.members_only")}
+                        </label>
+                      ) : null}
+                    </td>
                     <td className="p-2">{m.paired_at ? <Badge tone="success">{t("common.yes")}</Badge> : <Badge tone="warning">{t("channels.pending")}</Badge>}</td>
                     <td className="whitespace-nowrap p-2">{m.last_seen_at ? formatDateTime(locale, m.last_seen_at) : t("common.none")}</td>
                     <td className="p-2 text-right">
@@ -182,6 +208,7 @@ export default function ChannelsPage() {
               </Notice>
             ) : null}
           </Card>
+          <BotsCard base="/api/v1/channel-bots" clients={clients.data ?? []} />
         </div>
       </div>
     </div>

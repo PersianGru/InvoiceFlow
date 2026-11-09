@@ -39,6 +39,18 @@ PERMISSIONS: dict[str, frozenset[Role]] = {
     "bank.view": frozenset({Role.firm_owner, Role.accountant, Role.junior_accountant, Role.api_key}),
     "bank.manage": frozenset({Role.firm_owner, Role.accountant, Role.api_key}),
     "reporting.manage": frozenset({Role.firm_owner, Role.accountant}),
+    # accounts, trash, backups, settings
+    "users.view": frozenset({Role.firm_owner, Role.accountant}),
+    "users.manage_staff": frozenset({Role.firm_owner}),
+    "users.manage_clients": frozenset({Role.firm_owner, Role.accountant}),
+    "users.reveal_deleted": frozenset({Role.firm_owner}),
+    "documents.trash": frozenset({Role.firm_owner, Role.accountant}),
+    "documents.trash_approve": frozenset({Role.firm_owner}),
+    "documents.purge": frozenset({Role.firm_owner}),
+    "backups.manage": frozenset({Role.firm_owner}),
+    "backups.restore": frozenset({Role.firm_owner}),
+    "settings.manage": frozenset({Role.firm_owner}),
+    "intake.pause": frozenset({Role.firm_owner, Role.accountant}),
 }
 
 
@@ -61,6 +73,8 @@ def allowed(role: Role, permission: str) -> bool:
     roles = PERMISSIONS.get(permission)
     if roles is None:
         return False  # unknown permission: deny by default
+    if role == Role.super_admin:
+        return True  # high-level access for setup and troubleshooting
     return role in roles
 
 

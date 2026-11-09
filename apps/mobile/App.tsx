@@ -6,7 +6,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ApiError, InvoiceFlowClient, describeAsset, type Comment, type DocumentRow, type Summary, type User } from "./src/api";
 import { localeFrom, t as translate, type Locale, type MessageKey } from "./src/i18n";
@@ -62,14 +62,17 @@ export default function App() {
           setClient(new InvoiceFlowClient(url, null));
           await saveServer(url);
         }}
-        onLogin={async (email, password, totp) => {
-          const u = await client.login(email, password, totp);
+        onLogin={async (email, password, totp, recovery) => {
+          const u = await client.login(email, password, totp, recovery);
           await saveToken(client.hasToken ? "set" : null);
           setUser(u);
         }}
         client={client}
       />
     );
+  }
+  if (user.mfa_setup_required) {
+    return <TwoFactorSetup t={t} client={client} onDone={async () => setUser(await client.me())} />;
   }
   return (
     <Shell
@@ -85,11 +88,12 @@ export default function App() {
   );
 }
 
-function Login({ t, server, onServer, onLogin, client }: { t: (k: MessageKey, v?: Record<string, string | number>) => string; server: string; onServer: (url: string) => Promise<void>; onLogin: (email: string, password: string, totp?: string) => Promise<void>; client: InvoiceFlowClient }) {
+function Login({ t, server, onServer, onLogin, client }: { t: (k: MessageKey, v?: Record<string, string | number>) => string; server: string; onServer: (url: string) => Promise<void>; onLogin: (email: string, password: string, totp?: string, recovery?: string) => Promise<void>; client: InvoiceFlowClient }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [totp, setTotp] = useState("");
   const [needTotp, setNeedTotp] = useState(false);
+  const [useRecovery, setUseRecovery] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [serverDraft, setServerDraft] = useState(server);
@@ -99,7 +103,7 @@ function Login({ t, server, onServer, onLogin, client }: { t: (k: MessageKey, v?
     setError(null);
     try {
       if (serverDraft !== client.baseUrl) await onServer(serverDraft.replace(/\/+$/, ""));
-      await onLogin(email.trim(), password, needTotp ? totp.trim() : undefined);
+      await onLogin(email.trim(), password, needTotp && !useRecovery ? totp.trim() : undefined, needTotp && useRecovery ? totp.trim() : undefined);
     } catch (e) {
       if (e instanceof ApiError && e.needsTotp) setNeedTotp(true);
       else setError(e instanceof Error ? e.message : String(e));
@@ -122,14 +126,82 @@ function Login({ t, server, onServer, onLogin, client }: { t: (k: MessageKey, v?
         <TextInput style={styles.input} secureTextEntry autoComplete="password" value={password} onChangeText={setPassword} />
         {needTotp ? (
           <>
-            <Text style={styles.label}>{t("login.totp")}</Text>
-            <TextInput style={styles.input} keyboardType="number-pad" autoComplete="one-time-code" value={totp} onChangeText={setTotp} />
+            <Text style={styles.label}>{useRecovery ? t("login.recovery_code") : t("login.totp")}</Text>
+            <TextInput style={styles.input} keyboardType={useRecovery ? "default" : "number-pad"} autoCapitalize="none" autoComplete="one-time-code" value={totp} onChangeText={setTotp} />
+            <Pressable accessibilityRole="button" onPress={() => setUseRecovery(!useRecovery)}>
+              <Text style={styles.label}>{useRecovery ? t("login.totp") : t("login.recovery")}</Text>
+            </Pressable>
           </>
         ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <Pressable accessibilityRole="button" style={[styles.button, busy && styles.disabled]} disabled={busy || !email || !password} onPress={submit}>
           <Text style={styles.buttonText}>{t("login.button")}</Text>
         </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function TwoFactorSetup({ t, client, onDone }: { t: (k: MessageKey, v?: Record<string, string | number>) => string; client: InvoiceFlowClient; onDone: () => Promise<void> }) {
+  const [setup, setSetup] = useState<{ otpauth_uri: string; secret: string } | null>(null);
+  const [code, setCode] = useState("");
+  const [codes, setCodes] = useState<string[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void client
+      .totpSetup()
+      .then(setSetup)
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+  }, [client]);
+
+  return (
+    <SafeAreaView style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.pad}>
+        <Text style={styles.h1}>{t("mfa.title")}</Text>
+        <Text style={styles.label}>{t("mfa.intro")}</Text>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {codes ? (
+          <>
+            <Text style={styles.label}>{t("mfa.codes")}</Text>
+            {codes.map((c) => (
+              <Text key={c} selectable style={styles.input}>
+                {c}
+              </Text>
+            ))}
+            <Pressable accessibilityRole="button" style={styles.button} onPress={() => void onDone()}>
+              <Text style={styles.buttonText}>{t("mfa.continue")}</Text>
+            </Pressable>
+          </>
+        ) : setup ? (
+          <>
+            <Pressable accessibilityRole="button" style={styles.button} onPress={() => void Linking.openURL(setup.otpauth_uri)}>
+              <Text style={styles.buttonText}>{t("mfa.open")}</Text>
+            </Pressable>
+            <Text style={styles.label}>{t("mfa.manual")}</Text>
+            <Text selectable style={styles.input}>
+              {setup.secret}
+            </Text>
+            <Text style={styles.label}>{t("mfa.code")}</Text>
+            <TextInput style={styles.input} keyboardType="number-pad" autoComplete="one-time-code" value={code} onChangeText={setCode} />
+            <Pressable
+              accessibilityRole="button"
+              style={[styles.button, code.length < 6 && styles.disabled]}
+              disabled={code.length < 6}
+              onPress={async () => {
+                try {
+                  setCodes((await client.totpConfirm(code.trim())).recovery_codes);
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : String(e));
+                }
+              }}
+            >
+              <Text style={styles.buttonText}>{t("mfa.confirm")}</Text>
+            </Pressable>
+          </>
+        ) : (
+          <ActivityIndicator color={colors.amber} />
+        )}
       </ScrollView>
     </SafeAreaView>
   );

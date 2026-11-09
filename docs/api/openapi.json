@@ -82,41 +82,169 @@
     }
    }
   },
-  "/api/v1/firms": {
-   "get": {
+  "/api/v1/auth/link/inspect": {
+   "post": {
     "tags": [
-     "firms"
+     "auth"
     ],
-    "summary": "List Firms",
-    "operationId": "list_firms_api_v1_firms_get",
+    "summary": "Inspect Link",
+    "operationId": "inspect_link_api_v1_auth_link_inspect_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LinkIn"
+       }
+      }
+     },
+     "required": true
+    },
     "responses": {
      "200": {
       "description": "Successful Response",
       "content": {
        "application/json": {
         "schema": {
-         "items": {
-          "$ref": "#/components/schemas/FirmAdminRow"
-         },
-         "type": "array",
-         "title": "Response List Firms Api V1 Firms Get"
+         "$ref": "#/components/schemas/LinkOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
         }
        }
       }
      }
     }
-   },
+   }
+  },
+  "/api/v1/auth/link/complete": {
    "post": {
     "tags": [
-     "firms"
+     "auth"
     ],
-    "summary": "Signup",
-    "operationId": "signup_api_v1_firms_post",
+    "summary": "Complete Link",
+    "description": "Sets the password from an invite or reset link and signs the person in. Mandatory 2FA then\nasks for the authenticator setup before anything else.",
+    "operationId": "complete_link_api_v1_auth_link_complete_post",
     "requestBody": {
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/SignupIn"
+        "$ref": "#/components/schemas/LinkCompleteIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/auth/forgot-password": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Forgot Password",
+    "description": "Always the same answer, known email or not.",
+    "operationId": "forgot_password_api_v1_auth_forgot_password_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ForgotIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object",
+         "title": "Response Forgot Password Api V1 Auth Forgot Password Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/setup/status": {
+   "get": {
+    "tags": [
+     "platform"
+    ],
+    "summary": "Setup Status",
+    "operationId": "setup_status_api_v1_setup_status_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SetupStatus"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/setup": {
+   "post": {
+    "tags": [
+     "platform"
+    ],
+    "summary": "Setup",
+    "description": "Creates the platform and its super admin. Works once; afterwards there is no sign-up.",
+    "operationId": "setup_api_v1_setup_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SetupIn"
        }
       }
      },
@@ -128,7 +256,272 @@
       "content": {
        "application/json": {
         "schema": {
-         "$ref": "#/components/schemas/FirmOut"
+         "$ref": "#/components/schemas/UserOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/overview": {
+   "get": {
+    "tags": [
+     "platform"
+    ],
+    "summary": "Overview",
+    "operationId": "overview_api_v1_platform_overview_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Overview"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/firms": {
+   "post": {
+    "tags": [
+     "platform"
+    ],
+    "summary": "Create Firm",
+    "description": "The first firm may start without a key; every further firm needs a valid license key, checked with\nthe hub before the firm exists, and the platform license must allow one more firm.",
+    "operationId": "create_firm_api_v1_platform_firms_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FirmCreateIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FirmCreated"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/firms/{firm_id}/deactivate": {
+   "post": {
+    "tags": [
+     "platform"
+    ],
+    "summary": "Deactivate Firm",
+    "operationId": "deactivate_firm_api_v1_platform_firms__firm_id__deactivate_post",
+    "parameters": [
+     {
+      "name": "firm_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Firm Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__api__v1__platform__ReasonIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FirmRow"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/firms/{firm_id}/reactivate": {
+   "post": {
+    "tags": [
+     "platform"
+    ],
+    "summary": "Reactivate Firm",
+    "operationId": "reactivate_firm_api_v1_platform_firms__firm_id__reactivate_post",
+    "parameters": [
+     {
+      "name": "firm_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Firm Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__api__v1__platform__ReasonIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FirmRow"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/firms/{firm_id}/delete": {
+   "post": {
+    "tags": [
+     "platform"
+    ],
+    "summary": "Delete Firm",
+    "description": "Marks the firm deleted (users locked out); its data is erased 30 days later. Needs a backup that\nis less than 24 hours old.",
+    "operationId": "delete_firm_api_v1_platform_firms__firm_id__delete_post",
+    "parameters": [
+     {
+      "name": "firm_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Firm Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__api__v1__platform__ReasonIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FirmRow"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/switch": {
+   "post": {
+    "tags": [
+     "platform"
+    ],
+    "summary": "Switch Firm",
+    "description": "Enter a firm (full access for setup and troubleshooting) or go back to the platform view. Both\nare written to the firm's audit log, so its owner sees them.",
+    "operationId": "switch_firm_api_v1_platform_switch_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SwitchIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserOut"
         }
        }
       }
@@ -182,6 +575,31 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/firms": {
+   "get": {
+    "tags": [
+     "firms"
+    ],
+    "summary": "List Firms",
+    "operationId": "list_firms_api_v1_firms_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/FirmAdminRow"
+         },
+         "type": "array",
+         "title": "Response List Firms Api V1 Firms Get"
         }
        }
       }
@@ -493,7 +911,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "$ref": "#/components/schemas/LicenseView"
+         "$ref": "#/components/schemas/RefreshView"
         }
        }
       }
@@ -779,6 +1197,113 @@
     }
    }
   },
+  "/api/v1/client-companies/{client_id}/inbound-address/regenerate": {
+   "post": {
+    "tags": [
+     "client-companies"
+    ],
+    "summary": "Regenerate Address",
+    "description": "A new address for the client company; all its data stays. The old address is never reissued and\nstops receiving (or, during the grace period, accepts known senders only, flagged).",
+    "operationId": "regenerate_address_api_v1_client_companies__client_id__inbound_address_regenerate_post",
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RegenerateIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ClientCompanyOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/client-companies/{client_id}/intake-pause": {
+   "post": {
+    "tags": [
+     "client-companies"
+    ],
+    "summary": "Pause Intake",
+    "operationId": "pause_intake_api_v1_client_companies__client_id__intake_pause_post",
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PauseIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ClientCompanyOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/users": {
    "get": {
     "tags": [
@@ -827,7 +1352,430 @@
       "content": {
        "application/json": {
         "schema": {
+         "$ref": "#/components/schemas/InviteOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/users/{user_id}/resend-invite": {
+   "post": {
+    "tags": [
+     "users"
+    ],
+    "summary": "Resend Invite",
+    "operationId": "resend_invite_api_v1_users__user_id__resend_invite_post",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "User Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InviteOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/users/{user_id}/reset-password": {
+   "post": {
+    "tags": [
+     "users"
+    ],
+    "summary": "Reset Password",
+    "operationId": "reset_password_api_v1_users__user_id__reset_password_post",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "User Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InviteOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/users/{user_id}/reset-2fa": {
+   "post": {
+    "tags": [
+     "users"
+    ],
+    "summary": "Reset 2Fa",
+    "description": "Firm owner (or super admin): the user sets up 2FA again with a QR code at the next sign-in.",
+    "operationId": "reset_2fa_api_v1_users__user_id__reset_2fa_post",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "User Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__api__v1__users__ReasonIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
          "$ref": "#/components/schemas/UserOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/users/{user_id}": {
+   "patch": {
+    "tags": [
+     "users"
+    ],
+    "summary": "Update User",
+    "operationId": "update_user_api_v1_users__user_id__patch",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "User Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UserPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/users/{user_id}/deactivate": {
+   "post": {
+    "tags": [
+     "users"
+    ],
+    "summary": "Deactivate",
+    "operationId": "deactivate_api_v1_users__user_id__deactivate_post",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "User Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__api__v1__users__ReasonIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/users/{user_id}/reactivate": {
+   "post": {
+    "tags": [
+     "users"
+    ],
+    "summary": "Reactivate",
+    "operationId": "reactivate_api_v1_users__user_id__reactivate_post",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "User Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__api__v1__users__ReasonIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/users/{user_id}/delete": {
+   "post": {
+    "tags": [
+     "users"
+    ],
+    "summary": "Delete User",
+    "description": "Erases the person (name, email, password, 2FA, sessions, pairings); history keeps the anonymous\nplaceholder. Who it was stays in one sealed tombstone for the bookkeeping retention period, readable\nby the firm owner only.",
+    "operationId": "delete_user_api_v1_users__user_id__delete_post",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "User Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__api__v1__users__ReasonIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/users/deleted": {
+   "get": {
+    "tags": [
+     "users"
+    ],
+    "summary": "Deleted Users",
+    "operationId": "deleted_users_api_v1_users_deleted_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/TombstoneOut"
+         },
+         "type": "array",
+         "title": "Response Deleted Users Api V1 Users Deleted Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/users/deleted/{tombstone_id}/reveal": {
+   "post": {
+    "tags": [
+     "users"
+    ],
+    "summary": "Reveal Deleted",
+    "operationId": "reveal_deleted_api_v1_users_deleted__tombstone_id__reveal_post",
+    "parameters": [
+     {
+      "name": "tombstone_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tombstone Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Reveal Deleted Api V1 Users Deleted  Tombstone Id  Reveal Post"
         }
        }
       }
@@ -884,8 +1832,56 @@
      "required": true
     },
     "responses": {
-     "204": {
-      "description": "Successful Response"
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TotpConfirmOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/users/me/recovery-codes": {
+   "post": {
+    "tags": [
+     "users"
+    ],
+    "summary": "Regenerate Recovery Codes",
+    "operationId": "regenerate_recovery_codes_api_v1_users_me_recovery_codes_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CodeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TotpConfirmOut"
+        }
+       }
+      }
      },
      "422": {
       "description": "Validation Error",
@@ -2459,6 +3455,57 @@
    }
   },
   "/api/v1/api-keys/{key_id}": {
+   "patch": {
+    "tags": [
+     "api-keys"
+    ],
+    "summary": "Update Key",
+    "operationId": "update_key_api_v1_api_keys__key_id__patch",
+    "parameters": [
+     {
+      "name": "key_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Key Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ApiKeyPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ApiKeyOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
    "delete": {
     "tags": [
      "api-keys"
@@ -2484,6 +3531,50 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/ApiKeyOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/api-keys/{key_id}/rotate": {
+   "post": {
+    "tags": [
+     "api-keys"
+    ],
+    "summary": "Rotate Key",
+    "description": "A new secret with the same settings; the old key stops working at once.",
+    "operationId": "rotate_key_api_v1_api_keys__key_id__rotate_post",
+    "parameters": [
+     {
+      "name": "key_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Key Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ApiKeyCreated"
         }
        }
       }
@@ -2936,6 +4027,183 @@
     }
    }
   },
+  "/api/v1/channels/telegram/webhook/{bot_id}": {
+   "post": {
+    "tags": [
+     "channels"
+    ],
+    "summary": "Telegram Bot Webhook",
+    "operationId": "telegram_bot_webhook_api_v1_channels_telegram_webhook__bot_id__post",
+    "parameters": [
+     {
+      "name": "bot_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Bot Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Telegram Bot Webhook Api V1 Channels Telegram Webhook  Bot Id  Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/channels/whatsapp/webhook/{bot_id}": {
+   "get": {
+    "tags": [
+     "channels"
+    ],
+    "summary": "Whatsapp Bot Verify",
+    "operationId": "whatsapp_bot_verify_api_v1_channels_whatsapp_webhook__bot_id__get",
+    "parameters": [
+     {
+      "name": "bot_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Bot Id"
+      }
+     },
+     {
+      "name": "hub.mode",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Hub.Mode"
+      }
+     },
+     {
+      "name": "hub.verify_token",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Hub.Verify Token"
+      }
+     },
+     {
+      "name": "hub.challenge",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Hub.Challenge"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "channels"
+    ],
+    "summary": "Whatsapp Bot Webhook",
+    "operationId": "whatsapp_bot_webhook_api_v1_channels_whatsapp_webhook__bot_id__post",
+    "parameters": [
+     {
+      "name": "bot_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Bot Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Whatsapp Bot Webhook Api V1 Channels Whatsapp Webhook  Bot Id  Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/channels/whatsapp/webhook": {
    "get": {
     "tags": [
@@ -3180,6 +4448,263 @@
        "type": "string",
        "format": "uuid",
        "title": "Mapping Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "channels"
+    ],
+    "summary": "Update Mapping",
+    "operationId": "update_mapping_api_v1_sender_mappings__mapping_id__patch",
+    "parameters": [
+     {
+      "name": "mapping_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Mapping Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MappingPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MappingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/channel-bots": {
+   "get": {
+    "tags": [
+     "channels"
+    ],
+    "summary": "List Firm Bots",
+    "operationId": "list_firm_bots_api_v1_channel_bots_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array",
+         "title": "Response List Firm Bots Api V1 Channel Bots Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "channels"
+    ],
+    "summary": "Create Firm Bot",
+    "operationId": "create_firm_bot_api_v1_channel_bots_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BotIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Create Firm Bot Api V1 Channel Bots Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/channel-bots/{bot_id}": {
+   "delete": {
+    "tags": [
+     "channels"
+    ],
+    "summary": "Delete Firm Bot",
+    "operationId": "delete_firm_bot_api_v1_channel_bots__bot_id__delete",
+    "parameters": [
+     {
+      "name": "bot_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Bot Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/channel-bots": {
+   "get": {
+    "tags": [
+     "channels"
+    ],
+    "summary": "List Platform Bots",
+    "operationId": "list_platform_bots_api_v1_platform_channel_bots_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array",
+         "title": "Response List Platform Bots Api V1 Platform Channel Bots Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "channels"
+    ],
+    "summary": "Create Platform Bot",
+    "operationId": "create_platform_bot_api_v1_platform_channel_bots_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BotIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Create Platform Bot Api V1 Platform Channel Bots Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/channel-bots/{bot_id}": {
+   "delete": {
+    "tags": [
+     "channels"
+    ],
+    "summary": "Delete Platform Bot",
+    "operationId": "delete_platform_bot_api_v1_platform_channel_bots__bot_id__delete",
+    "parameters": [
+     {
+      "name": "bot_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Bot Id"
       }
      }
     ],
@@ -5465,6 +6990,53 @@
     }
    }
   },
+  "/api/v1/engines": {
+   "get": {
+    "tags": [
+     "engines"
+    ],
+    "summary": "Engines",
+    "operationId": "engines_api_v1_engines_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Engines Api V1 Engines Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/engines/test": {
+   "post": {
+    "tags": [
+     "engines"
+    ],
+    "summary": "Test Engines",
+    "description": "Runs the local OCR engine on a generated sample and checks the LLM providers' availability.",
+    "operationId": "test_engines_api_v1_engines_test_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Test Engines Api V1 Engines Test Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/schemas/invoice/v1": {
    "get": {
     "tags": [
@@ -5478,6 +7050,1478 @@
       "content": {
        "application/json": {
         "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/settings": {
+   "get": {
+    "tags": [
+     "settings"
+    ],
+    "summary": "Platform Settings",
+    "operationId": "platform_settings_api_v1_platform_settings_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Platform Settings Api V1 Platform Settings Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/settings/{key}": {
+   "put": {
+    "tags": [
+     "settings"
+    ],
+    "summary": "Put Platform Section",
+    "operationId": "put_platform_section_api_v1_platform_settings__key__put",
+    "parameters": [
+     {
+      "name": "key",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Key"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SectionIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Put Platform Section Api V1 Platform Settings  Key  Put"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/settings/smtp/test": {
+   "post": {
+    "tags": [
+     "settings"
+    ],
+    "summary": "Test Platform Smtp",
+    "operationId": "test_platform_smtp_api_v1_platform_settings_smtp_test_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TestMailIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Test Platform Smtp Api V1 Platform Settings Smtp Test Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/settings/imap/test": {
+   "post": {
+    "tags": [
+     "settings"
+    ],
+    "summary": "Test Platform Imap",
+    "operationId": "test_platform_imap_api_v1_platform_settings_imap_test_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Test Platform Imap Api V1 Platform Settings Imap Test Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/domain": {
+   "put": {
+    "tags": [
+     "settings"
+    ],
+    "summary": "Put Root Domain",
+    "operationId": "put_root_domain_api_v1_platform_domain_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DomainIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Put Root Domain Api V1 Platform Domain Put"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/domain/check": {
+   "post": {
+    "tags": [
+     "settings"
+    ],
+    "summary": "Check Root Domain",
+    "operationId": "check_root_domain_api_v1_platform_domain_check_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Check Root Domain Api V1 Platform Domain Check Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/firm-settings": {
+   "get": {
+    "tags": [
+     "settings"
+    ],
+    "summary": "Firm Settings",
+    "operationId": "firm_settings_api_v1_firm_settings_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Firm Settings Api V1 Firm Settings Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/firm-settings/{key}": {
+   "put": {
+    "tags": [
+     "settings"
+    ],
+    "summary": "Put Firm Section",
+    "operationId": "put_firm_section_api_v1_firm_settings__key__put",
+    "parameters": [
+     {
+      "name": "key",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Key"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SectionIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Put Firm Section Api V1 Firm Settings  Key  Put"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "settings"
+    ],
+    "summary": "Delete Firm Section",
+    "description": "Back to the platform default.",
+    "operationId": "delete_firm_section_api_v1_firm_settings__key__delete",
+    "parameters": [
+     {
+      "name": "key",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Key"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/firm-settings/smtp/test": {
+   "post": {
+    "tags": [
+     "settings"
+    ],
+    "summary": "Test Firm Smtp",
+    "operationId": "test_firm_smtp_api_v1_firm_settings_smtp_test_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TestMailIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Test Firm Smtp Api V1 Firm Settings Smtp Test Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/firm-settings/imap/test": {
+   "post": {
+    "tags": [
+     "settings"
+    ],
+    "summary": "Test Firm Imap",
+    "operationId": "test_firm_imap_api_v1_firm_settings_imap_test_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Test Firm Imap Api V1 Firm Settings Imap Test Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/firm-settings/domains/subdomain": {
+   "patch": {
+    "tags": [
+     "settings"
+    ],
+    "summary": "Rename Firm Subdomain",
+    "operationId": "rename_firm_subdomain_api_v1_firm_settings_domains_subdomain_patch",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LabelIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Rename Firm Subdomain Api V1 Firm Settings Domains Subdomain Patch"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/firm-settings/domains/custom": {
+   "put": {
+    "tags": [
+     "settings"
+    ],
+    "summary": "Put Custom Domain",
+    "operationId": "put_custom_domain_api_v1_firm_settings_domains_custom_put",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DomainIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Put Custom Domain Api V1 Firm Settings Domains Custom Put"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "settings"
+    ],
+    "summary": "Delete Custom Domain",
+    "operationId": "delete_custom_domain_api_v1_firm_settings_domains_custom_delete",
+    "parameters": [
+     {
+      "name": "grace_days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "default": 0,
+       "title": "Grace Days"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/firm-settings/domains/custom/check": {
+   "post": {
+    "tags": [
+     "settings"
+    ],
+    "summary": "Check Custom Domain",
+    "operationId": "check_custom_domain_api_v1_firm_settings_domains_custom_check_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Check Custom Domain Api V1 Firm Settings Domains Custom Check Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/documents/trash/preview": {
+   "post": {
+    "tags": [
+     "trash"
+    ],
+    "summary": "Preview",
+    "operationId": "preview_api_v1_documents_trash_preview_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PreviewIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Preview Api V1 Documents Trash Preview Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/documents/trash": {
+   "post": {
+    "tags": [
+     "trash"
+    ],
+    "summary": "Trash",
+    "operationId": "trash_api_v1_documents_trash_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TrashIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Trash Api V1 Documents Trash Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/trash-requests": {
+   "get": {
+    "tags": [
+     "trash"
+    ],
+    "summary": "List Requests",
+    "operationId": "list_requests_api_v1_trash_requests_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array",
+         "title": "Response List Requests Api V1 Trash Requests Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/trash-requests/{request_id}/approve": {
+   "post": {
+    "tags": [
+     "trash"
+    ],
+    "summary": "Approve",
+    "operationId": "approve_api_v1_trash_requests__request_id__approve_post",
+    "parameters": [
+     {
+      "name": "request_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Request Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DecisionIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Approve Api V1 Trash Requests  Request Id  Approve Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/trash-requests/{request_id}/reject": {
+   "post": {
+    "tags": [
+     "trash"
+    ],
+    "summary": "Reject",
+    "operationId": "reject_api_v1_trash_requests__request_id__reject_post",
+    "parameters": [
+     {
+      "name": "request_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Request Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DecisionIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Reject Api V1 Trash Requests  Request Id  Reject Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/trash": {
+   "get": {
+    "tags": [
+     "trash"
+    ],
+    "summary": "List Trash",
+    "operationId": "list_trash_api_v1_trash_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array",
+         "title": "Response List Trash Api V1 Trash Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/trash/{document_id}/restore": {
+   "post": {
+    "tags": [
+     "trash"
+    ],
+    "summary": "Restore Document",
+    "operationId": "restore_document_api_v1_trash__document_id__restore_post",
+    "parameters": [
+     {
+      "name": "document_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Document Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__api__v1__trash__ReasonIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {
+          "type": "string"
+         },
+         "title": "Response Restore Document Api V1 Trash  Document Id  Restore Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/trash/{document_id}/purge": {
+   "post": {
+    "tags": [
+     "trash"
+    ],
+    "summary": "Purge Now",
+    "operationId": "purge_now_api_v1_trash__document_id__purge_post",
+    "parameters": [
+     {
+      "name": "document_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Document Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__api__v1__trash__ReasonIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {
+          "type": "string"
+         },
+         "title": "Response Purge Now Api V1 Trash  Document Id  Purge Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/backups": {
+   "get": {
+    "tags": [
+     "backups"
+    ],
+    "summary": "Firm Backups",
+    "operationId": "firm_backups_api_v1_backups_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Firm Backups Api V1 Backups Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "backups"
+    ],
+    "summary": "Create Firm Backup",
+    "operationId": "create_firm_backup_api_v1_backups_post",
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Create Firm Backup Api V1 Backups Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/backups/{backup_id}/reveal": {
+   "post": {
+    "tags": [
+     "backups"
+    ],
+    "summary": "Reveal Firm Password",
+    "operationId": "reveal_firm_password_api_v1_backups__backup_id__reveal_post",
+    "parameters": [
+     {
+      "name": "backup_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Backup Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CodeIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Reveal Firm Password Api V1 Backups  Backup Id  Reveal Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/backups/{backup_id}/download": {
+   "get": {
+    "tags": [
+     "backups"
+    ],
+    "summary": "Download Firm Backup",
+    "operationId": "download_firm_backup_api_v1_backups__backup_id__download_get",
+    "parameters": [
+     {
+      "name": "backup_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Backup Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/backups/recovery-key": {
+   "post": {
+    "tags": [
+     "backups"
+    ],
+    "summary": "Firm Recovery Key",
+    "operationId": "firm_recovery_key_api_v1_backups_recovery_key_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object",
+         "title": "Response Firm Recovery Key Api V1 Backups Recovery Key Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/backups/recovery-key/confirm": {
+   "post": {
+    "tags": [
+     "backups"
+    ],
+    "summary": "Confirm Firm Recovery Key",
+    "operationId": "confirm_firm_recovery_key_api_v1_backups_recovery_key_confirm_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "type": "boolean"
+         },
+         "type": "object",
+         "title": "Response Confirm Firm Recovery Key Api V1 Backups Recovery Key Confirm Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/backups/{backup_id}/restore": {
+   "post": {
+    "tags": [
+     "backups"
+    ],
+    "summary": "Restore Firm Backup",
+    "description": "Restore over the firm on this installation: a fresh backup of the current state is taken first.",
+    "operationId": "restore_firm_backup_api_v1_backups__backup_id__restore_post",
+    "parameters": [
+     {
+      "name": "backup_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Backup Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RestoreIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Restore Firm Backup Api V1 Backups  Backup Id  Restore Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/backups": {
+   "get": {
+    "tags": [
+     "backups"
+    ],
+    "summary": "Platform Backups",
+    "operationId": "platform_backups_api_v1_platform_backups_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Platform Backups Api V1 Platform Backups Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "backups"
+    ],
+    "summary": "Create Platform Backup",
+    "operationId": "create_platform_backup_api_v1_platform_backups_post",
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Create Platform Backup Api V1 Platform Backups Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/firms/{firm_id}/backup": {
+   "post": {
+    "tags": [
+     "backups"
+    ],
+    "summary": "Create Backup Of Firm",
+    "operationId": "create_backup_of_firm_api_v1_platform_firms__firm_id__backup_post",
+    "parameters": [
+     {
+      "name": "firm_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Firm Id"
+      }
+     }
+    ],
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Create Backup Of Firm Api V1 Platform Firms  Firm Id  Backup Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/backups/{backup_id}/reveal": {
+   "post": {
+    "tags": [
+     "backups"
+    ],
+    "summary": "Reveal Platform Password",
+    "operationId": "reveal_platform_password_api_v1_platform_backups__backup_id__reveal_post",
+    "parameters": [
+     {
+      "name": "backup_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Backup Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CodeIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Reveal Platform Password Api V1 Platform Backups  Backup Id  Reveal Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/backups/{backup_id}/download": {
+   "get": {
+    "tags": [
+     "backups"
+    ],
+    "summary": "Download Platform Backup",
+    "operationId": "download_platform_backup_api_v1_platform_backups__backup_id__download_get",
+    "parameters": [
+     {
+      "name": "backup_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Backup Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/recovery-key": {
+   "post": {
+    "tags": [
+     "backups"
+    ],
+    "summary": "Platform Recovery Key",
+    "operationId": "platform_recovery_key_api_v1_platform_recovery_key_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object",
+         "title": "Response Platform Recovery Key Api V1 Platform Recovery Key Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/recovery-key/confirm": {
+   "post": {
+    "tags": [
+     "backups"
+    ],
+    "summary": "Confirm Platform Recovery Key",
+    "operationId": "confirm_platform_recovery_key_api_v1_platform_recovery_key_confirm_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "type": "boolean"
+         },
+         "type": "object",
+         "title": "Response Confirm Platform Recovery Key Api V1 Platform Recovery Key Confirm Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/firms/{firm_id}/restore": {
+   "post": {
+    "tags": [
+     "backups"
+    ],
+    "summary": "Restore Firm Upload",
+    "description": "The super admin restores a firm from an uploaded archive (another server, or a placeholder after a\nplatform restore). An existing firm gets an automatic backup first.",
+    "operationId": "restore_firm_upload_api_v1_platform_firms__firm_id__restore_post",
+    "parameters": [
+     {
+      "name": "firm_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Firm Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_restore_firm_upload_api_v1_platform_firms__firm_id__restore_post"
+       }
+      }
+     }
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Restore Firm Upload Api V1 Platform Firms  Firm Id  Restore Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/setup/restore": {
+   "post": {
+    "tags": [
+     "backups"
+    ],
+    "summary": "Setup From Backup",
+    "description": "First run on a fresh server: restore the platform from its backup instead of a new setup. The\nsuper admin then signs in with the restored account; firms appear as \"missing data\".",
+    "operationId": "setup_from_backup_api_v1_setup_restore_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_setup_from_backup_api_v1_setup_restore_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Setup From Backup Api V1 Setup Restore Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
        }
       }
      }
@@ -5713,6 +8757,38 @@
       ],
       "title": "Revoked At"
      },
+     "client_company_ids": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Client Company Ids",
+      "default": []
+     },
+     "allowed_cidrs": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Allowed Cidrs",
+      "default": []
+     },
+     "description": {
+      "type": "string",
+      "title": "Description",
+      "default": ""
+     },
+     "last_used_ip": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Used Ip"
+     },
      "key": {
       "type": "string",
       "title": "Key"
@@ -5766,6 +8842,29 @@
        }
       ],
       "title": "Expires At"
+     },
+     "client_company_ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "maxItems": 500,
+      "title": "Client Company Ids"
+     },
+     "allowed_cidrs": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "maxItems": 50,
+      "title": "Allowed Cidrs"
+     },
+     "description": {
+      "type": "string",
+      "maxLength": 300,
+      "title": "Description",
+      "default": ""
      }
     },
     "type": "object",
@@ -5835,6 +8934,38 @@
        }
       ],
       "title": "Revoked At"
+     },
+     "client_company_ids": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Client Company Ids",
+      "default": []
+     },
+     "allowed_cidrs": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Allowed Cidrs",
+      "default": []
+     },
+     "description": {
+      "type": "string",
+      "title": "Description",
+      "default": ""
+     },
+     "last_used_ip": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Used Ip"
      }
     },
     "type": "object",
@@ -5850,6 +8981,107 @@
      "revoked_at"
     ],
     "title": "ApiKeyOut"
+   },
+   "ApiKeyPatch": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "scopes": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Scopes"
+     },
+     "rate_limit_per_minute": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 6000.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rate Limit Per Minute"
+     },
+     "expires_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Expires At"
+     },
+     "client_company_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string",
+         "format": "uuid"
+        },
+        "type": "array",
+        "maxItems": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Company Ids"
+     },
+     "allowed_cidrs": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array",
+        "maxItems": 50
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Allowed Cidrs"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 300
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     }
+    },
+    "type": "object",
+    "title": "ApiKeyPatch"
    },
    "AssignIn": {
     "properties": {
@@ -6014,6 +9246,96 @@
     "type": "object",
     "title": "Body_oauth_token_api_v1_oauth_token_post"
    },
+   "Body_restore_firm_upload_api_v1_platform_firms__firm_id__restore_post": {
+    "properties": {
+     "file": {
+      "type": "string",
+      "contentMediaType": "application/octet-stream",
+      "title": "File"
+     },
+     "reason": {
+      "type": "string",
+      "maxLength": 2000,
+      "minLength": 3,
+      "title": "Reason"
+     },
+     "password": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Password"
+     },
+     "recovery_key": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Recovery Key"
+     }
+    },
+    "type": "object",
+    "required": [
+     "file",
+     "reason"
+    ],
+    "title": "Body_restore_firm_upload_api_v1_platform_firms__firm_id__restore_post"
+   },
+   "Body_setup_from_backup_api_v1_setup_restore_post": {
+    "properties": {
+     "setup_code": {
+      "type": "string",
+      "maxLength": 20,
+      "minLength": 12,
+      "title": "Setup Code"
+     },
+     "file": {
+      "type": "string",
+      "contentMediaType": "application/octet-stream",
+      "title": "File"
+     },
+     "password": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Password"
+     },
+     "recovery_key": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Recovery Key"
+     }
+    },
+    "type": "object",
+    "required": [
+     "setup_code",
+     "file"
+    ],
+    "title": "Body_setup_from_backup_api_v1_setup_restore_post"
+   },
    "Body_upload_api_v1_documents_post": {
     "properties": {
      "file": {
@@ -6053,6 +9375,98 @@
      "file"
     ],
     "title": "Body_upload_statement_api_v1_bank_statements_post"
+   },
+   "BotIn": {
+    "properties": {
+     "channel": {
+      "type": "string",
+      "pattern": "^(telegram|whatsapp)$",
+      "title": "Channel"
+     },
+     "client_company_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Company Id"
+     },
+     "display_name": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Display Name",
+      "default": ""
+     },
+     "accept_from": {
+      "type": "string",
+      "pattern": "^(anyone|paired)$",
+      "title": "Accept From",
+      "default": "anyone"
+     },
+     "token": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Token"
+     },
+     "access_token": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 1000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Access Token"
+     },
+     "phone_number_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone Number Id"
+     },
+     "app_secret": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "App Secret"
+     },
+     "api_version": {
+      "type": "string",
+      "maxLength": 10,
+      "title": "Api Version",
+      "default": "v21.0"
+     }
+    },
+    "type": "object",
+    "required": [
+     "channel"
+    ],
+    "title": "BotIn"
    },
    "BulkIn": {
     "properties": {
@@ -6258,6 +9672,32 @@
      "is_active": {
       "type": "boolean",
       "title": "Is Active"
+     },
+     "intake_paused": {
+      "additionalProperties": {
+       "type": "boolean"
+      },
+      "type": "object",
+      "title": "Intake Paused",
+      "default": {}
+     },
+     "retired_addresses": {
+      "items": {
+       "additionalProperties": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Retired Addresses",
+      "default": []
      }
     },
     "type": "object",
@@ -6428,6 +9868,21 @@
      "last_error"
     ],
     "title": "ClientCredentialOut"
+   },
+   "CodeIn": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "maxLength": 8,
+      "minLength": 6,
+      "title": "Code"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code"
+    ],
+    "title": "CodeIn"
    },
    "CommentIn": {
     "properties": {
@@ -6668,6 +10123,21 @@
      "last_test_message"
     ],
     "title": "ConnectorOut"
+   },
+   "DecisionIn": {
+    "properties": {
+     "note": {
+      "type": "string",
+      "maxLength": 2000,
+      "minLength": 3,
+      "title": "Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "note"
+    ],
+    "title": "DecisionIn"
    },
    "DeliveryOut": {
     "properties": {
@@ -7056,6 +10526,28 @@
     ],
     "title": "DocumentPage"
    },
+   "DomainIn": {
+    "properties": {
+     "domain": {
+      "type": "string",
+      "maxLength": 253,
+      "minLength": 3,
+      "title": "Domain"
+     },
+     "grace_days": {
+      "type": "integer",
+      "maximum": 14.0,
+      "minimum": 0.0,
+      "title": "Grace Days",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "required": [
+     "domain"
+    ],
+    "title": "DomainIn"
+   },
    "EndpointCreated": {
     "properties": {
      "id": {
@@ -7111,6 +10603,14 @@
       "type": "string",
       "title": "Created At"
      },
+     "client_company_ids": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Client Company Ids",
+      "default": []
+     },
      "secret": {
       "type": "string",
       "title": "Secret"
@@ -7156,6 +10656,15 @@
       "type": "boolean",
       "title": "Active",
       "default": true
+     },
+     "client_company_ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "maxItems": 500,
+      "title": "Client Company Ids"
      }
     },
     "type": "object",
@@ -7218,6 +10727,14 @@
      "created_at": {
       "type": "string",
       "title": "Created At"
+     },
+     "client_company_ids": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Client Company Ids",
+      "default": []
      }
     },
     "type": "object",
@@ -7583,6 +11100,89 @@
     ],
     "title": "FirmAdminRow"
    },
+   "FirmCreateIn": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 2,
+      "title": "Name"
+     },
+     "country": {
+      "type": "string",
+      "maxLength": 2,
+      "minLength": 2,
+      "title": "Country",
+      "default": "DE"
+     },
+     "locale": {
+      "type": "string",
+      "maxLength": 8,
+      "title": "Locale",
+      "default": "en"
+     },
+     "owner_email": {
+      "type": "string",
+      "format": "email",
+      "title": "Owner Email"
+     },
+     "owner_name": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Owner Name",
+      "default": ""
+     },
+     "license_key": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "License Key"
+     },
+     "send_email": {
+      "type": "boolean",
+      "title": "Send Email",
+      "default": true
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "owner_email"
+    ],
+    "title": "FirmCreateIn"
+   },
+   "FirmCreated": {
+    "properties": {
+     "firm": {
+      "$ref": "#/components/schemas/FirmRow"
+     },
+     "owner": {
+      "$ref": "#/components/schemas/UserOut"
+     },
+     "invite_link": {
+      "type": "string",
+      "title": "Invite Link"
+     },
+     "email_sent": {
+      "type": "boolean",
+      "title": "Email Sent"
+     }
+    },
+    "type": "object",
+    "required": [
+     "firm",
+     "owner",
+     "invite_link",
+     "email_sent"
+    ],
+    "title": "FirmCreated"
+   },
    "FirmOut": {
     "properties": {
      "id": {
@@ -7630,6 +11230,117 @@
      "created_at"
     ],
     "title": "FirmOut"
+   },
+   "FirmRow": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "country": {
+      "type": "string",
+      "title": "Country"
+     },
+     "is_active": {
+      "type": "boolean",
+      "title": "Is Active"
+     },
+     "deleted_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deleted At"
+     },
+     "license_state": {
+      "type": "string",
+      "title": "License State"
+     },
+     "key_hint": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Key Hint"
+     },
+     "hub_error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Hub Error"
+     },
+     "users": {
+      "type": "integer",
+      "title": "Users"
+     },
+     "client_companies": {
+      "type": "integer",
+      "title": "Client Companies"
+     },
+     "created_at": {
+      "type": "string",
+      "title": "Created At"
+     },
+     "installation_id_grouped": {
+      "type": "string",
+      "title": "Installation Id Grouped"
+     },
+     "last_backup_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Backup At"
+     },
+     "inbound_domain": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Inbound Domain"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "country",
+     "is_active",
+     "deleted_at",
+     "license_state",
+     "key_hint",
+     "hub_error",
+     "users",
+     "client_companies",
+     "created_at",
+     "installation_id_grouped"
+    ],
+    "title": "FirmRow"
    },
    "FirmSettingsIn": {
     "properties": {
@@ -7718,6 +11429,19 @@
        }
       ],
       "title": "Base Currency"
+     },
+     "trash_retention_days": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 90.0,
+        "minimum": 7.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Trash Retention Days"
      }
     },
     "type": "object",
@@ -7752,6 +11476,11 @@
      "base_currency": {
       "type": "string",
       "title": "Base Currency"
+     },
+     "trash_retention_days": {
+      "type": "integer",
+      "title": "Trash Retention Days",
+      "default": 30
      }
     },
     "type": "object",
@@ -7765,6 +11494,20 @@
      "base_currency"
     ],
     "title": "FirmSettingsOut"
+   },
+   "ForgotIn": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email"
+    ],
+    "title": "ForgotIn"
    },
    "HTTPValidationError": {
     "properties": {
@@ -7846,12 +11589,6 @@
      "role": {
       "$ref": "#/components/schemas/Role"
      },
-     "password": {
-      "type": "string",
-      "maxLength": 1024,
-      "minLength": 1,
-      "title": "Password"
-     },
      "client_company_id": {
       "anyOf": [
        {
@@ -7863,15 +11600,68 @@
        }
       ],
       "title": "Client Company Id"
+     },
+     "send_email": {
+      "type": "boolean",
+      "title": "Send Email",
+      "default": true
      }
     },
     "type": "object",
     "required": [
      "email",
-     "role",
-     "password"
+     "role"
     ],
     "title": "InviteIn"
+   },
+   "InviteOut": {
+    "properties": {
+     "user": {
+      "$ref": "#/components/schemas/UserOut"
+     },
+     "link": {
+      "type": "string",
+      "title": "Link"
+     },
+     "email_sent": {
+      "type": "boolean",
+      "title": "Email Sent"
+     },
+     "expires_at": {
+      "type": "string",
+      "title": "Expires At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "user",
+     "link",
+     "email_sent",
+     "expires_at"
+    ],
+    "title": "InviteOut"
+   },
+   "LabelIn": {
+    "properties": {
+     "label": {
+      "type": "string",
+      "maxLength": 63,
+      "minLength": 1,
+      "title": "Label"
+     },
+     "grace_days": {
+      "type": "integer",
+      "maximum": 14.0,
+      "minimum": 0.0,
+      "title": "Grace Days",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "required": [
+     "label"
+    ],
+    "title": "LabelIn"
    },
    "LicenseView": {
     "properties": {
@@ -8066,6 +11856,11 @@
        }
       ],
       "title": "Banner"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind",
+      "default": "firm"
      }
     },
     "type": "object",
@@ -8097,6 +11892,71 @@
     ],
     "title": "LicenseView"
    },
+   "LinkCompleteIn": {
+    "properties": {
+     "token": {
+      "type": "string",
+      "maxLength": 128,
+      "minLength": 10,
+      "title": "Token"
+     },
+     "password": {
+      "type": "string",
+      "maxLength": 1024,
+      "minLength": 1,
+      "title": "Password"
+     }
+    },
+    "type": "object",
+    "required": [
+     "token",
+     "password"
+    ],
+    "title": "LinkCompleteIn"
+   },
+   "LinkIn": {
+    "properties": {
+     "token": {
+      "type": "string",
+      "maxLength": 128,
+      "minLength": 10,
+      "title": "Token"
+     }
+    },
+    "type": "object",
+    "required": [
+     "token"
+    ],
+    "title": "LinkIn"
+   },
+   "LinkOut": {
+    "properties": {
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "email": {
+      "type": "string",
+      "title": "Email"
+     },
+     "display_name": {
+      "type": "string",
+      "title": "Display Name"
+     },
+     "expires_at": {
+      "type": "string",
+      "title": "Expires At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "kind",
+     "email",
+     "display_name",
+     "expires_at"
+    ],
+    "title": "LinkOut"
+   },
    "LoginIn": {
     "properties": {
      "email": {
@@ -8120,6 +11980,18 @@
        }
       ],
       "title": "Totp Code"
+     },
+     "recovery_code": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 32
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Recovery Code"
      }
     },
     "type": "object",
@@ -8267,6 +12139,32 @@
      "created_at": {
       "type": "string",
       "title": "Created At"
+     },
+     "scope": {
+      "type": "string",
+      "title": "Scope",
+      "default": "person"
+     },
+     "accept_from": {
+      "type": "string",
+      "title": "Accept From",
+      "default": "anyone"
+     },
+     "bot_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Bot Id"
+     },
+     "active": {
+      "type": "boolean",
+      "title": "Active",
+      "default": true
      }
     },
     "type": "object",
@@ -8283,6 +12181,35 @@
      "created_at"
     ],
     "title": "MappingOut"
+   },
+   "MappingPatch": {
+    "properties": {
+     "accept_from": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^(anyone|paired)$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Accept From"
+     },
+     "active": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Active"
+     }
+    },
+    "type": "object",
+    "title": "MappingPatch"
    },
    "MatchOut": {
     "properties": {
@@ -8414,6 +12341,48 @@
     ],
     "title": "OfflineRequestOut"
    },
+   "Overview": {
+    "properties": {
+     "firms": {
+      "items": {
+       "$ref": "#/components/schemas/FirmRow"
+      },
+      "type": "array",
+      "title": "Firms"
+     },
+     "firm_count": {
+      "type": "integer",
+      "title": "Firm Count"
+     },
+     "max_firms": {
+      "type": "integer",
+      "title": "Max Firms"
+     },
+     "platform_license_state": {
+      "type": "string",
+      "title": "Platform License State"
+     },
+     "platform_firm_id": {
+      "type": "string",
+      "title": "Platform Firm Id"
+     },
+     "health": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Health"
+     }
+    },
+    "type": "object",
+    "required": [
+     "firms",
+     "firm_count",
+     "max_firms",
+     "platform_license_state",
+     "platform_firm_id",
+     "health"
+    ],
+    "title": "Overview"
+   },
    "PairingIn": {
     "properties": {
      "client_company_id": {
@@ -8440,6 +12409,54 @@
     ],
     "title": "PairingIn"
    },
+   "PauseIn": {
+    "properties": {
+     "channels": {
+      "additionalProperties": {
+       "type": "boolean"
+      },
+      "type": "object",
+      "title": "Channels"
+     },
+     "reason": {
+      "type": "string",
+      "maxLength": 500,
+      "minLength": 3,
+      "title": "Reason"
+     }
+    },
+    "type": "object",
+    "required": [
+     "channels",
+     "reason"
+    ],
+    "title": "PauseIn"
+   },
+   "PreviewIn": {
+    "properties": {
+     "document_ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "maxItems": 5000,
+      "title": "Document Ids"
+     },
+     "filter": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TrashFilter"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "title": "PreviewIn"
+   },
    "PushIn": {
     "properties": {
      "document_ids": {
@@ -8458,6 +12475,297 @@
      "document_ids"
     ],
     "title": "PushIn"
+   },
+   "RefreshOutcome": {
+    "properties": {
+     "ok": {
+      "type": "boolean",
+      "title": "Ok"
+     },
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "message": {
+      "type": "string",
+      "title": "Message"
+     },
+     "retry_at": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retry At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ok",
+     "code",
+     "message",
+     "retry_at"
+    ],
+    "title": "RefreshOutcome",
+    "description": "What \"Check now\" did. ``retry_at`` says when the next check is possible while the 15-minute\nrule (spec §12), a back-off or a block holds; the page shows it instead of staying silent."
+   },
+   "RefreshView": {
+    "properties": {
+     "state": {
+      "type": "string",
+      "title": "State"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "core_on": {
+      "type": "boolean",
+      "title": "Core On"
+     },
+     "trial": {
+      "type": "boolean",
+      "title": "Trial"
+     },
+     "trial_days_left": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Trial Days Left"
+     },
+     "expires_at": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Expires At"
+     },
+     "grace_days": {
+      "type": "integer",
+      "title": "Grace Days"
+     },
+     "kh": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kh"
+     },
+     "plan": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Plan"
+     },
+     "plan_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Plan Name"
+     },
+     "licensed_to": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Licensed To"
+     },
+     "items": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Items"
+     },
+     "features": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Features"
+     },
+     "use": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Use"
+     },
+     "next_refresh_at": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Next Refresh At"
+     },
+     "verified_at": {
+      "type": "integer",
+      "title": "Verified At"
+     },
+     "hub_error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Hub Error"
+     },
+     "hub_message": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Hub Message"
+     },
+     "installation_id": {
+      "type": "string",
+      "title": "Installation Id"
+     },
+     "installation_id_grouped": {
+      "type": "string",
+      "title": "Installation Id Grouped"
+     },
+     "has_key": {
+      "type": "boolean",
+      "title": "Has Key"
+     },
+     "messages": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Messages"
+     },
+     "store_links": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object",
+      "title": "Store Links"
+     },
+     "banner": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Banner"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind",
+      "default": "firm"
+     },
+     "outcome": {
+      "$ref": "#/components/schemas/RefreshOutcome"
+     }
+    },
+    "type": "object",
+    "required": [
+     "state",
+     "reason",
+     "core_on",
+     "trial",
+     "trial_days_left",
+     "expires_at",
+     "grace_days",
+     "kh",
+     "plan",
+     "plan_name",
+     "licensed_to",
+     "items",
+     "features",
+     "use",
+     "next_refresh_at",
+     "verified_at",
+     "hub_error",
+     "hub_message",
+     "installation_id",
+     "installation_id_grouped",
+     "has_key",
+     "messages",
+     "store_links",
+     "banner",
+     "outcome"
+    ],
+    "title": "RefreshView"
+   },
+   "RegenerateIn": {
+    "properties": {
+     "reason": {
+      "type": "string",
+      "maxLength": 500,
+      "minLength": 3,
+      "title": "Reason"
+     },
+     "grace_days": {
+      "type": "integer",
+      "maximum": 14.0,
+      "minimum": 0.0,
+      "title": "Grace Days",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "required": [
+     "reason"
+    ],
+    "title": "RegenerateIn"
    },
    "ReleaseIn": {
     "properties": {
@@ -8627,6 +12935,28 @@
     ],
     "title": "RequisitionIn"
    },
+   "RestoreIn": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "maxLength": 8,
+      "minLength": 6,
+      "title": "Code"
+     },
+     "reason": {
+      "type": "string",
+      "maxLength": 2000,
+      "minLength": 3,
+      "title": "Reason"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "reason"
+    ],
+    "title": "RestoreIn"
+   },
    "ReviewIn": {
     "properties": {
      "action": {
@@ -8764,31 +13094,46 @@
     "type": "object",
     "title": "Scope"
    },
-   "SignupIn": {
+   "SectionIn": {
     "properties": {
-     "firm_name": {
-      "type": "string",
-      "maxLength": 200,
-      "minLength": 2,
-      "title": "Firm Name"
+     "values": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Values"
      },
-     "country": {
-      "type": "string",
-      "maxLength": 2,
-      "minLength": 2,
-      "title": "Country",
-      "default": "DE"
+     "enabled": {
+      "type": "boolean",
+      "title": "Enabled",
+      "default": true
      },
-     "owner_email": {
+     "clear_secrets": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Clear Secrets"
+     }
+    },
+    "type": "object",
+    "title": "SectionIn"
+   },
+   "SetupIn": {
+    "properties": {
+     "setup_code": {
+      "type": "string",
+      "maxLength": 20,
+      "minLength": 12,
+      "title": "Setup Code"
+     },
+     "email": {
       "type": "string",
       "format": "email",
-      "title": "Owner Email"
+      "title": "Email"
      },
-     "owner_name": {
+     "display_name": {
       "type": "string",
       "maxLength": 200,
-      "minLength": 1,
-      "title": "Owner Name",
+      "title": "Display Name",
       "default": ""
      },
      "password": {
@@ -8796,21 +13141,28 @@
       "maxLength": 1024,
       "minLength": 1,
       "title": "Password"
-     },
-     "locale": {
-      "type": "string",
-      "maxLength": 8,
-      "title": "Locale",
-      "default": "en"
      }
     },
     "type": "object",
     "required": [
-     "firm_name",
-     "owner_email",
+     "setup_code",
+     "email",
      "password"
     ],
-    "title": "SignupIn"
+    "title": "SetupIn"
+   },
+   "SetupStatus": {
+    "properties": {
+     "setup_required": {
+      "type": "boolean",
+      "title": "Setup Required"
+     }
+    },
+    "type": "object",
+    "required": [
+     "setup_required"
+    ],
+    "title": "SetupStatus"
    },
    "SsoConfigIn": {
     "properties": {
@@ -9213,6 +13565,24 @@
     "type": "object",
     "title": "SupplierPatch"
    },
+   "SwitchIn": {
+    "properties": {
+     "firm_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Firm Id"
+     }
+    },
+    "type": "object",
+    "title": "SwitchIn"
+   },
    "TemplateIn": {
     "properties": {
      "name": {
@@ -9321,6 +13691,70 @@
     ],
     "title": "TemplateOut"
    },
+   "TestMailIn": {
+    "properties": {
+     "to": {
+      "type": "string",
+      "format": "email",
+      "title": "To"
+     }
+    },
+    "type": "object",
+    "required": [
+     "to"
+    ],
+    "title": "TestMailIn"
+   },
+   "TombstoneOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "user_id": {
+      "type": "string",
+      "title": "User Id"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "reason": {
+      "type": "string",
+      "title": "Reason"
+     },
+     "deleted_by_user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deleted By User Id"
+     },
+     "deleted_at": {
+      "type": "string",
+      "title": "Deleted At"
+     },
+     "erase_after": {
+      "type": "string",
+      "title": "Erase After"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "user_id",
+     "label",
+     "reason",
+     "deleted_by_user_id",
+     "deleted_at",
+     "erase_after"
+    ],
+    "title": "TombstoneOut"
+   },
    "TotpConfirmIn": {
     "properties": {
      "code": {
@@ -9336,16 +13770,42 @@
     ],
     "title": "TotpConfirmIn"
    },
+   "TotpConfirmOut": {
+    "properties": {
+     "recovery_codes": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Recovery Codes"
+     }
+    },
+    "type": "object",
+    "required": [
+     "recovery_codes"
+    ],
+    "title": "TotpConfirmOut"
+   },
    "TotpSetupOut": {
     "properties": {
      "otpauth_uri": {
       "type": "string",
       "title": "Otpauth Uri"
+     },
+     "secret": {
+      "type": "string",
+      "title": "Secret"
+     },
+     "qr_svg": {
+      "type": "string",
+      "title": "Qr Svg"
      }
     },
     "type": "object",
     "required": [
-     "otpauth_uri"
+     "otpauth_uri",
+     "secret",
+     "qr_svg"
     ],
     "title": "TotpSetupOut"
    },
@@ -9453,6 +13913,118 @@
      "match_status"
     ],
     "title": "TransactionOut"
+   },
+   "TrashFilter": {
+    "properties": {
+     "client_company_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Company Id"
+     },
+     "channel": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 16
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Channel"
+     },
+     "sender": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 320
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sender"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 16
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "received_from": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Received From"
+     },
+     "received_to": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Received To"
+     }
+    },
+    "type": "object",
+    "title": "TrashFilter"
+   },
+   "TrashIn": {
+    "properties": {
+     "document_ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "maxItems": 5000,
+      "title": "Document Ids"
+     },
+     "filter": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TrashFilter"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "reason": {
+      "type": "string",
+      "maxLength": 2000,
+      "minLength": 3,
+      "title": "Reason"
+     }
+    },
+    "type": "object",
+    "required": [
+     "reason"
+    ],
+    "title": "TrashIn"
    },
    "UploadOut": {
     "properties": {
@@ -9762,6 +14334,54 @@
      "totp_enabled": {
       "type": "boolean",
       "title": "Totp Enabled"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status",
+      "default": "active"
+     },
+     "mfa_setup_required": {
+      "type": "boolean",
+      "title": "Mfa Setup Required",
+      "default": false
+     },
+     "acting_firm_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Acting Firm Id"
+     },
+     "recovery_codes_left": {
+      "type": "integer",
+      "title": "Recovery Codes Left",
+      "default": 0
+     },
+     "created_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created At"
+     },
+     "last_login_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Login At"
      }
     },
     "type": "object",
@@ -9776,6 +14396,46 @@
      "totp_enabled"
     ],
     "title": "UserOut"
+   },
+   "UserPatch": {
+    "properties": {
+     "display_name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Display Name"
+     },
+     "role": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Role"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "client_company_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Company Id"
+     }
+    },
+    "type": "object",
+    "title": "UserPatch"
    },
    "ValidationError": {
     "properties": {
@@ -9816,6 +14476,51 @@
      "type"
     ],
     "title": "ValidationError"
+   },
+   "app__api__v1__platform__ReasonIn": {
+    "properties": {
+     "reason": {
+      "type": "string",
+      "maxLength": 1000,
+      "minLength": 3,
+      "title": "Reason"
+     }
+    },
+    "type": "object",
+    "required": [
+     "reason"
+    ],
+    "title": "ReasonIn"
+   },
+   "app__api__v1__trash__ReasonIn": {
+    "properties": {
+     "reason": {
+      "type": "string",
+      "maxLength": 2000,
+      "minLength": 3,
+      "title": "Reason"
+     }
+    },
+    "type": "object",
+    "required": [
+     "reason"
+    ],
+    "title": "ReasonIn"
+   },
+   "app__api__v1__users__ReasonIn": {
+    "properties": {
+     "reason": {
+      "type": "string",
+      "maxLength": 1000,
+      "minLength": 3,
+      "title": "Reason"
+     }
+    },
+    "type": "object",
+    "required": [
+     "reason"
+    ],
+    "title": "ReasonIn"
    }
   },
   "securitySchemes": {

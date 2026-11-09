@@ -53,3 +53,22 @@ describe("api client", () => {
     await expect(client.upload({ uri: "file:///a.jpg", name: "a.jpg", mimeType: "image/jpeg" })).rejects.toMatchObject({ status: 402, isLicenseError: true });
   });
 });
+
+describe("two-factor setup (0.11)", () => {
+  it("sends the recovery code and calls the setup endpoints", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchImpl = (async (url: string, init: RequestInit) => {
+      calls.push({ url: String(url), init });
+      if (String(url).endsWith("/auth/login")) return new Response(JSON.stringify({ id: "u", email: "a@b.c", mfa_setup_required: true }), { status: 200, headers: { "x-session-token": "tok" } });
+      if (String(url).endsWith("/totp/setup")) return new Response(JSON.stringify({ otpauth_uri: "otpauth://totp/x", secret: "ABC" }), { status: 200 });
+      return new Response(JSON.stringify({ recovery_codes: ["a1b2c-3d4e5"] }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const c = new InvoiceFlowClient("https://x", null, fetchImpl);
+    const u = await c.login("a@b.c", "pw", undefined, "abcde-fghjk");
+    expect(u.mfa_setup_required).toBe(true);
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ email: "a@b.c", password: "pw", recovery_code: "abcde-fghjk" });
+    expect((await c.totpSetup()).otpauth_uri).toBe("otpauth://totp/x");
+    expect((await c.totpConfirm("123456")).recovery_codes).toHaveLength(1);
+    expect(calls[2].init.headers).toMatchObject({ authorization: "Bearer tok" });
+  });
+});

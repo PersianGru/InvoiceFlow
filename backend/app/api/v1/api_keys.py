@@ -43,6 +43,19 @@ class ApiKeyIn(BaseModel):
     scopes: list[str] = Field(default_factory=lambda: ["documents:read", "documents:write", "exports:read"])
     rate_limit_per_minute: int = Field(default=120, ge=1, le=6000)
     expires_at: datetime | None = None
+    client_company_ids: list[uuid.UUID] = Field(default_factory=list, max_length=500)
+    allowed_cidrs: list[str] = Field(default_factory=list, max_length=50)
+    description: str = Field(default="", max_length=300)
+
+
+class ApiKeyPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    scopes: list[str] | None = None
+    rate_limit_per_minute: int | None = Field(default=None, ge=1, le=6000)
+    expires_at: datetime | None = None
+    client_company_ids: list[uuid.UUID] | None = Field(default=None, max_length=500)
+    allowed_cidrs: list[str] | None = Field(default=None, max_length=50)
+    description: str | None = Field(default=None, max_length=300)
 
 
 class ApiKeyOut(BaseModel):
@@ -55,6 +68,10 @@ class ApiKeyOut(BaseModel):
     last_used_at: str | None
     expires_at: str | None
     revoked_at: str | None
+    client_company_ids: list[str] = []
+    allowed_cidrs: list[str] = []
+    description: str = ""
+    last_used_ip: str | None = None
 
 
 class ApiKeyCreated(ApiKeyOut):
@@ -72,7 +89,34 @@ def key_out(k: ApiKey) -> ApiKeyOut:
         last_used_at=k.last_used_at.isoformat() if k.last_used_at else None,
         expires_at=k.expires_at.isoformat() if k.expires_at else None,
         revoked_at=k.revoked_at.isoformat() if k.revoked_at else None,
+        client_company_ids=list(k.client_company_ids or []),
+        allowed_cidrs=list(k.allowed_cidrs or []),
+        description=k.description or "",
+        last_used_ip=k.last_used_ip,
     )
+
+
+def _cidrs(values: list[str]) -> list[str]:
+    import ipaddress
+
+    out = []
+    for v in values:
+        try:
+            out.append(str(ipaddress.ip_network(v.strip(), strict=False)))
+        except ValueError as e:
+            raise HTTPException(
+                422, {"error": "invalid_request", "message": f"Not an IP or network: {v}"}
+            ) from e
+    return out
+
+
+async def _clients(session: Any, ids: list[uuid.UUID]) -> list[str]:
+    from app.models.client_company import ClientCompany
+
+    for cid in ids:
+        if await session.get(ClientCompany, cid) is None:
+            raise HTTPException(404, {"error": "not_found", "message": "Client company not found."})
+    return sorted(str(c) for c in ids)
 
 
 @router.get("/api-keys", response_model=list[ApiKeyOut])
@@ -110,6 +154,9 @@ async def create_key(
         rate_limit_per_minute=body.rate_limit_per_minute,
         created_by_user_id=actor.user_id,
         expires_at=body.expires_at,
+        client_company_ids=await _clients(session, body.client_company_ids),
+        allowed_cidrs=_cidrs(body.allowed_cidrs),
+        description=body.description.strip(),
     )
     session.add(k)
     await session.flush()
@@ -120,7 +167,104 @@ async def create_key(
         action="api_key.create",
         target_type="api_key",
         target_id=str(k.id),
-        after={"name": k.name, "scopes": scopes, "key_hint": mask(k.key_id)},
+        after={
+            "name": k.name,
+            "scopes": scopes,
+            "key_hint": mask(k.key_id),
+            "client_company_ids": k.client_company_ids,
+            "allowed_cidrs": k.allowed_cidrs,
+        },
+    )
+    return ApiKeyCreated(**key_out(k).model_dump(), key=new.plain)
+
+
+@router.patch("/api-keys/{key_id}", response_model=ApiKeyOut)
+async def update_key(
+    key_id: uuid.UUID,
+    body: ApiKeyPatch,
+    session: SessionDep,
+    firm: FirmDep,
+    actor: Actor = Depends(require("api_keys.manage")),
+) -> ApiKeyOut:
+    k = await session.get(ApiKey, key_id)
+    if k is None or k.revoked_at is not None:
+        raise HTTPException(404, {"error": "not_found", "message": "API key not found."})
+    before = key_out(k).model_dump()
+    if body.name is not None:
+        k.name = body.name.strip()
+    if body.scopes is not None:
+        scopes = sorted({s for s in body.scopes if s in API_SCOPES})
+        if not scopes:
+            raise HTTPException(
+                422, {"error": "invalid_request", "message": "Pick at least one known scope."}
+            )
+        k.scopes = scopes
+    if body.rate_limit_per_minute is not None:
+        k.rate_limit_per_minute = body.rate_limit_per_minute
+    if "expires_at" in body.model_fields_set:
+        k.expires_at = body.expires_at
+    if body.client_company_ids is not None:
+        k.client_company_ids = await _clients(session, body.client_company_ids)
+    if body.allowed_cidrs is not None:
+        k.allowed_cidrs = _cidrs(body.allowed_cidrs)
+    if body.description is not None:
+        k.description = body.description.strip()
+    await record_audit(
+        session,
+        firm_id=firm.id,
+        actor=actor,
+        action="api_key.update",
+        target_type="api_key",
+        target_id=str(k.id),
+        before={
+            x: before[x]
+            for x in ("name", "scopes", "client_company_ids", "allowed_cidrs", "rate_limit_per_minute")
+        },
+        after={
+            "name": k.name,
+            "scopes": k.scopes,
+            "client_company_ids": k.client_company_ids,
+            "allowed_cidrs": k.allowed_cidrs,
+            "rate_limit_per_minute": k.rate_limit_per_minute,
+        },
+    )
+    return key_out(k)
+
+
+@router.post("/api-keys/{key_id}/rotate", response_model=ApiKeyCreated)
+async def rotate_key(
+    key_id: uuid.UUID, session: SessionDep, firm: FirmDep, actor: Actor = Depends(require("api_keys.manage"))
+) -> ApiKeyCreated:
+    """A new secret with the same settings; the old key stops working at once."""
+    old = await session.get(ApiKey, key_id)
+    if old is None or old.revoked_at is not None:
+        raise HTTPException(404, {"error": "not_found", "message": "API key not found."})
+    new = generate_key()
+    k = ApiKey(
+        firm_id=firm.id,
+        key_id=new.key_id,
+        secret_hash=new.secret_hash,
+        name=old.name,
+        scopes=list(old.scopes or []),
+        rate_limit_per_minute=old.rate_limit_per_minute,
+        created_by_user_id=actor.user_id,
+        expires_at=old.expires_at,
+        client_company_ids=list(old.client_company_ids or []),
+        allowed_cidrs=list(old.allowed_cidrs or []),
+        description=old.description,
+    )
+    old.revoked_at = datetime.now(UTC)
+    session.add(k)
+    await session.flush()
+    await record_audit(
+        session,
+        firm_id=firm.id,
+        actor=actor,
+        action="api_key.rotate",
+        target_type="api_key",
+        target_id=str(k.id),
+        before={"key": str(old.id), "key_hint": mask(old.key_id)},
+        after={"key_hint": mask(k.key_id)},
     )
     return ApiKeyCreated(**key_out(k).model_dump(), key=new.plain)
 

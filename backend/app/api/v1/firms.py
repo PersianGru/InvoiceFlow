@@ -1,35 +1,21 @@
-"""Firm sign-up (SaaS onboarding) and firm views."""
+"""Firm views and settings. Firms are created by the super admin (``/platform/firms``)."""
 
 from __future__ import annotations
 
-import uuid
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, EmailStr, Field
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
-from app.api.deps import ActorDep, FirmPathDep, LicenseServiceDep, SessionDep, SettingsDep, require
+from app.api.deps import ActorDep, FirmPathDep, SessionDep, require
 from app.audit.service import record_audit
-from app.auth.passwords import WeakPasswordError, check_policy, hash_password
 from app.db.rls import set_platform_bypass
 from app.licensing.installid import format_grouped
-from app.licensing.instance import new_instance
-from app.licensing.store import new_firm_data_key
 from app.models.firm import Firm
-from app.models.user import Role, User
 from app.tenancy.context import Actor
 
 router = APIRouter(prefix="/firms", tags=["firms"])
-
-
-class SignupIn(BaseModel):
-    firm_name: str = Field(min_length=2, max_length=200)
-    country: str = Field(min_length=2, max_length=2, default="DE")
-    owner_email: EmailStr
-    owner_name: str = Field(min_length=1, max_length=200, default="")
-    password: str = Field(min_length=1, max_length=1024)
-    locale: str = Field(default="en", max_length=8)
 
 
 class FirmOut(BaseModel):
@@ -56,53 +42,6 @@ def firm_out(f: Firm) -> FirmOut:
     )
 
 
-@router.post("", response_model=FirmOut, status_code=201)
-async def signup(
-    body: SignupIn, request: Request, session: SessionDep, settings: SettingsDep, svc: LicenseServiceDep
-) -> FirmOut:
-    try:
-        check_policy(body.password, settings.password_min_length)
-    except WeakPasswordError as e:
-        raise HTTPException(422, {"error": "weak_password", "message": str(e)}) from e
-    await set_platform_bypass(session)
-    exists = (await session.execute(select(User.id).where(User.email == body.owner_email.lower()))).first()
-    if exists:
-        raise HTTPException(
-            409, {"error": "email_taken", "message": "An account with this email already exists."}
-        )
-    now = svc.clock()
-    iid, fp, source = new_instance(settings, now)
-    firm = Firm(
-        id=uuid.uuid4(), name=body.firm_name.strip(), country=body.country.upper(), locale=body.locale
-    )
-    firm.data_key_wrapped = new_firm_data_key(request.app.state.master_key, str(firm.id))
-    firm.instance_id, firm.instance_fp, firm.instance_fp_source = iid, fp, source
-    firm.last_seen = now
-    session.add(firm)
-    await session.flush()
-    owner = User(
-        firm_id=firm.id,
-        email=body.owner_email.lower(),
-        display_name=body.owner_name or body.owner_email.split("@")[0],
-        password_hash=hash_password(body.password),
-        role=Role.firm_owner,
-        locale=body.locale,
-    )
-    session.add(owner)
-    await session.flush()
-    await record_audit(
-        session,
-        firm_id=firm.id,
-        actor=Actor.from_user(owner),
-        action="firm.create",
-        target_type="firm",
-        target_id=str(firm.id),
-        after={"name": firm.name, "installation_id": firm.instance_id},
-    )
-    await session.refresh(firm)
-    return firm_out(firm)
-
-
 @router.get("/{firm_id}", response_model=FirmOut)
 async def get_firm(firm: FirmPathDep) -> FirmOut:
     return firm_out(firm)
@@ -121,7 +60,12 @@ class FirmAdminRow(BaseModel):
 async def list_firms(
     session: SessionDep, actor: Actor = Depends(require("platform.admin"))
 ) -> list[FirmAdminRow]:
-    rows = (await session.execute(select(Firm).order_by(Firm.created_at))).scalars().all()
+    await set_platform_bypass(session)
+    rows = (
+        (await session.execute(select(Firm).where(Firm.kind == "firm").order_by(Firm.created_at)))
+        .scalars()
+        .all()
+    )
     return [
         FirmAdminRow(
             id=str(f.id),
@@ -139,7 +83,10 @@ async def list_firms(
 async def license_states(
     session: SessionDep, actor: Actor = Depends(require("platform.admin"))
 ) -> dict[str, int]:
-    rows = await session.execute(select(Firm.license_state, func.count()).group_by(Firm.license_state))
+    await set_platform_bypass(session)
+    rows = await session.execute(
+        select(Firm.license_state, func.count()).where(Firm.kind == "firm").group_by(Firm.license_state)
+    )
     return {state: int(n) for state, n in rows.all()}
 
 
@@ -163,6 +110,7 @@ class FirmSettingsIn(BaseModel):
     cloud_ai_monthly_cap: int | None = Field(default=None, ge=0, le=1_000_000)
     retention_days: int | None = Field(default=None, ge=365, le=36500)
     base_currency: str | None = Field(default=None, min_length=3, max_length=3)
+    trash_retention_days: int | None = Field(default=None, ge=7, le=90)
 
 
 class FirmSettingsOut(BaseModel):
@@ -173,6 +121,7 @@ class FirmSettingsOut(BaseModel):
     cloud_ai_monthly_cap: int
     retention_days: int
     base_currency: str
+    trash_retention_days: int = 30
 
 
 def _settings_out(f: Firm) -> FirmSettingsOut:
@@ -184,6 +133,7 @@ def _settings_out(f: Firm) -> FirmSettingsOut:
         cloud_ai_monthly_cap=f.cloud_ai_monthly_cap,
         retention_days=f.retention_days,
         base_currency=f.base_currency,
+        trash_retention_days=int((f.settings or {}).get("trash_retention_days", 30)),
     )
 
 
@@ -205,6 +155,8 @@ async def patch_settings(
             firm.confidence_threshold = Decimal(str(round(value, 3)))
         elif name == "base_currency":
             firm.base_currency = str(value).upper()
+        elif name == "trash_retention_days":
+            firm.settings = {**(firm.settings or {}), "trash_retention_days": int(value)}
         else:
             setattr(firm, name, value)
     await record_audit(

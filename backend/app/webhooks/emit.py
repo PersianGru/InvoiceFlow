@@ -78,9 +78,12 @@ async def emit_event(
         "data": json.loads(json.dumps(data, default=str)),
     }
     n = 0
+    client_id = str(data.get("client_company_id") or "")
     for ep in endpoints:
         if event_type != "ping" and event_type not in (ep.events or []):
             continue
+        if ep.client_company_ids and event_type != "ping" and client_id not in ep.client_company_ids:
+            continue  # this endpoint only receives events of its client companies
         session.add(
             WebhookDelivery(
                 firm_id=firm_id,

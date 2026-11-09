@@ -9,6 +9,7 @@ import { ApiError, get, imageUrl, post, upload, type ClientCompany, type Documen
 import { EXPORT_FORMATS } from "@/lib/integrations";
 import { useApp } from "@/lib/app-context";
 import { useFetch } from "@/lib/use-fetch";
+import { useReason } from "@/components/reason-dialog";
 
 const STATUSES = ["received", "processing", "needs_review", "needs_info", "approved", "rejected", "quarantined", "failed"] as const;
 const PAGE = 50;
@@ -22,8 +23,9 @@ export default function InboxPage() {
   const [flash, setFlash] = useState<{ tone: "success" | "danger" | "warning"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const isStaff = user?.role === "firm_owner" || user?.role === "accountant" || user?.role === "junior_accountant";
-  const canApprove = user?.role === "firm_owner" || user?.role === "accountant";
+  const isStaff = user?.role === "firm_owner" || user?.role === "accountant" || user?.role === "junior_accountant" || user?.role === "super_admin";
+  const canApprove = user?.role === "firm_owner" || user?.role === "accountant" || user?.role === "super_admin";
+  const [dialog, ask] = useReason();
 
   const docs = useFetch<DocumentPage>(() => get<DocumentPage>("/api/v1/documents", { ...filters, offset, limit: PAGE }), [JSON.stringify(filters), offset]);
   const clients = useFetch<ClientCompany[]>(() => (isStaff ? get<ClientCompany[]>("/api/v1/client-companies") : Promise.resolve([])), [isStaff]);
@@ -52,6 +54,31 @@ export default function InboxPage() {
     } finally {
       setBusy(false);
       if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function trash() {
+    if (!selected.size) return;
+    const ids = [...selected];
+    const pv = await post<{ count: number; protected: unknown[]; needs_approval: boolean }>("/api/v1/documents/trash/preview", { document_ids: ids });
+    const body = (
+      <>
+        <p>{t("trash.confirm_body", { n: pv.count, p: pv.protected.length })}</p>
+        {pv.needs_approval ? <p className="mt-1 font-medium">{t("trash.needs_approval")}</p> : null}
+      </>
+    );
+    const reason = await ask(t("trash.move"), { body, danger: true });
+    if (!reason) return;
+    setBusy(true);
+    try {
+      const r = await post<{ status: string; trashed: number }>("/api/v1/documents/trash", { document_ids: ids, reason });
+      setFlash({ tone: r.status === "executed" ? "success" : "warning", text: r.status === "executed" ? t("trash.done", { n: r.trashed }) : t("trash.requested") });
+      setSelected(new Set());
+      await docs.reload();
+    } catch (err) {
+      setFlash({ tone: "danger", text: err instanceof ApiError ? err.message : t("common.error") });
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -110,6 +137,7 @@ export default function InboxPage() {
 
   return (
     <div>
+      {dialog}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <h1 className="text-xl font-semibold">{t("inbox.title")}</h1>
         <div className="ml-auto flex items-center gap-2">
@@ -193,6 +221,11 @@ export default function InboxPage() {
           <Button size="sm" variant="secondary" onClick={() => bulk("reprocess")} disabled={busy || intakeOff}>
             {t("inbox.bulk.reprocess")}
           </Button>
+          {canApprove ? (
+            <Button size="sm" variant="danger" onClick={() => void trash()} disabled={busy}>
+              {t("trash.move")}
+            </Button>
+          ) : null}
           <Select
             aria-label={t("inbox.bulk.export")}
             className="w-auto py-1"

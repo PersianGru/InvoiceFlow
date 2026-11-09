@@ -4,6 +4,7 @@ from app.api.v1 import (
     api_keys,
     audit,
     auth,
+    backups,
     bank,
     channels,
     client_companies,
@@ -15,16 +16,20 @@ from app.api.v1 import (
     exports,
     firms,
     license,
+    platform,
     portal,
     reporting,
     schemas,
+    settings_api,
     sso,
+    trash,
     users,
     webhooks,
 )
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(auth.router)
+router.include_router(platform.router)
 router.include_router(firms.router)
 router.include_router(license.router)
 router.include_router(client_companies.router)
@@ -44,3 +49,6 @@ router.include_router(bank.router)
 router.include_router(reporting.router)
 router.include_router(engines.router)
 router.include_router(schemas.router)
+router.include_router(settings_api.router)
+router.include_router(trash.router)
+router.include_router(backups.router)

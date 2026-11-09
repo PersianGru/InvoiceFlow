@@ -20,6 +20,13 @@ def _hash(token: str) -> str:
 
 
 async def create_session(session: AsyncSession, user: User, ttl_seconds: int, *, mfa_passed: bool) -> str:
+    token, _row = await create_session_row(session, user, ttl_seconds, mfa_passed=mfa_passed)
+    return token
+
+
+async def create_session_row(
+    session: AsyncSession, user: User, ttl_seconds: int, *, mfa_passed: bool
+) -> tuple[str, UserSession]:
     token = secrets.token_urlsafe(32)
     row = UserSession(
         firm_id=user.firm_id,
@@ -30,7 +37,7 @@ async def create_session(session: AsyncSession, user: User, ttl_seconds: int, *,
     )
     session.add(row)
     await session.flush()
-    return token
+    return token, row
 
 
 async def resolve_session(session: AsyncSession, token: str) -> tuple[User, UserSession] | None:
@@ -43,7 +50,7 @@ async def resolve_session(session: AsyncSession, token: str) -> tuple[User, User
     if row is None or row.revoked_at is not None or row.expires_at <= datetime.now(UTC):
         return None
     user = await session.get(User, row.user_id)
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or user.deleted_at is not None:
         return None
     return user, row
 

@@ -3,7 +3,8 @@ import { useState, type FormEvent } from "react";
 
 import { Badge, Button, Card, Field, Input, Notice, Textarea } from "@/components/ui";
 import { formatDateTime } from "@/i18n";
-import { ApiError, del, get, patch, post, type WebhookDelivery, type WebhookEndpoint } from "@/lib/api";
+import { ClientPicker } from "@/components/client-picker";
+import { ApiError, del, get, patch, post, type ClientCompany, type WebhookDelivery, type WebhookEndpoint } from "@/lib/api";
 import { useApp } from "@/lib/app-context";
 import { WEBHOOK_EVENTS, signatureExample } from "@/lib/integrations";
 import { useFetch } from "@/lib/use-fetch";
@@ -15,7 +16,8 @@ function deliveryTone(status: WebhookDelivery["status"]): "success" | "warning" 
 export default function WebhooksPage() {
   const { t, locale, refreshLicense } = useApp();
   const endpoints = useFetch<WebhookEndpoint[]>(() => get<WebhookEndpoint[]>("/api/v1/webhooks"), []);
-  const [form, setForm] = useState({ url: "", description: "", events: [...WEBHOOK_EVENTS] as string[] });
+  const [form, setForm] = useState({ url: "", description: "", events: [...WEBHOOK_EVENTS] as string[], client_company_ids: [] as string[] });
+  const clients = useFetch<ClientCompany[]>(() => get<ClientCompany[]>("/api/v1/client-companies"), []);
   const [secret, setSecret] = useState<string | null>(null);
   const [flash, setFlash] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
   const [open, setOpen] = useState<string | null>(null);
@@ -87,7 +89,7 @@ export default function WebhooksPage() {
                   <Button size="sm" variant="secondary" onClick={() => run(async () => setSecret((await post<{ secret: string }>(`/api/v1/webhooks/${ep.id}/rotate-secret`)).secret))}>
                     {t("webhooks.rotate")}
                   </Button>
-                  <Button size="sm" variant="secondary" onClick={() => run(() => patch(`/api/v1/webhooks/${ep.id}`, { url: ep.url, description: ep.description, events: ep.events, active: !ep.active }))}>
+                  <Button size="sm" variant="secondary" onClick={() => run(() => patch(`/api/v1/webhooks/${ep.id}`, { url: ep.url, description: ep.description, events: ep.events, active: !ep.active, client_company_ids: ep.client_company_ids ?? [] }))}>
                     {ep.active ? t("webhooks.disable") : t("webhooks.enable")}
                   </Button>
                   <Button size="sm" variant="secondary" onClick={() => setOpen(open === ep.id ? null : ep.id)}>
@@ -166,6 +168,7 @@ export default function WebhooksPage() {
               </label>
             ))}
           </fieldset>
+          <ClientPicker id="w-clients" clients={clients.data ?? []} value={form.client_company_ids} onChange={(v) => setForm({ ...form, client_company_ids: v })} />
           <Button type="submit" disabled={!form.events.length}>
             {t("webhooks.new")}
           </Button>

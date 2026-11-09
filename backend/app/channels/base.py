@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Protocol
@@ -29,6 +30,17 @@ class InboundMessage:
     files: list[InboundFile] = field(default_factory=list)
     received_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     reply_to: str | None = None  # where replies go when it differs from ``sender`` (email)
+    # email: every recipient candidate (X-Original-To, all Delivered-To, Envelope-To, X-Forwarded-To,
+    # To, Cc; webhook to/recipient/envelope), in header order; the router picks the inbound ones
+    recipients: list[str] = field(default_factory=list)
+    # chat channels
+    chat_id: str | None = None
+    chat_type: str | None = None  # private | group | supergroup | channel
+    chat_title: str = ""
+    migrate_to_chat_id: str | None = None
+    bot_id: uuid.UUID | None = None  # the bot or number that received it (None = platform/environment)
+    transport: Transport | None = field(default=None, repr=False, compare=False)
+    forced_client_id: uuid.UUID | None = None  # held files released after the company was chosen
 
 
 class Transport(Protocol):

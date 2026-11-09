@@ -6,6 +6,7 @@ import { Suspense, useState, type FormEvent } from "react";
 import { ApiError, post, type User } from "@/lib/api";
 import { useApp } from "@/lib/app-context";
 import { Button, Field, Input, Notice } from "@/components/ui";
+import { homeFor } from "@/lib/countries";
 
 function LoginForm() {
   const { t, refreshSession } = useApp();
@@ -16,6 +17,8 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [totp, setTotp] = useState("");
   const [needTotp, setNeedTotp] = useState(false);
+  const [useRecovery, setUseRecovery] = useState(false);
+  const [recovery, setRecovery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -24,11 +27,16 @@ function LoginForm() {
     setBusy(true);
     setError(null);
     try {
-      const me = await post<User>("/api/v1/auth/login", { email, password, totp_code: totp || undefined });
+      const me = await post<User>("/api/v1/auth/login", {
+        email,
+        password,
+        totp_code: !useRecovery && totp ? totp : undefined,
+        recovery_code: useRecovery && recovery ? recovery : undefined,
+      });
       await refreshSession();
-      router.replace(me.role === "client_admin" || me.role === "client_user" ? "/my" : "/inbox");
+      router.replace(homeFor(me));
     } catch (err) {
-      if (err instanceof ApiError && err.code === "totp_required") {
+      if (err instanceof ApiError && (err.code === "totp_required" || err.code === "recovery_code_invalid")) {
         setNeedTotp(true);
         setError(t("login.totp_required"));
       } else {
@@ -66,10 +74,20 @@ function LoginForm() {
         <Field id="password" label={t("login.password")}>
           <Input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
-        {needTotp ? (
+        {needTotp && !useRecovery ? (
           <Field id="totp" label={t("login.totp")}>
             <Input id="totp" inputMode="numeric" autoComplete="one-time-code" value={totp} onChange={(e) => setTotp(e.target.value)} />
           </Field>
+        ) : null}
+        {needTotp && useRecovery ? (
+          <Field id="recovery" label={t("login.recovery_code")}>
+            <Input id="recovery" autoComplete="off" value={recovery} onChange={(e) => setRecovery(e.target.value)} />
+          </Field>
+        ) : null}
+        {needTotp ? (
+          <button type="button" className="mb-3 text-sm underline" onClick={() => setUseRecovery(!useRecovery)}>
+            {useRecovery ? t("login.use_totp") : t("login.use_recovery")}
+          </button>
         ) : null}
         {error ? (
           <Notice tone="danger" role="alert" className="mb-3">
@@ -84,8 +102,8 @@ function LoginForm() {
         </Button>
       </form>
       <p className="mt-6 text-sm">
-        <Link className="underline" href="/signup">
-          {t("login.signup")}
+        <Link className="underline" href="/forgot-password">
+          {t("login.forgot")}
         </Link>
       </p>
     </main>

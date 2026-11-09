@@ -86,7 +86,32 @@ HUMAN_MESSAGES: dict[str, str] = {
     "offline": "An offline license is verified on this server; the hub is not contacted.",
     "ok": "The license was checked with the hub.",
     "bad_file": "This is not a valid InvoiceFlow license file.",
+    "platform_license_on_firm": (
+        "This is a platform license (number of firms). Activate it under Platform → License, not on a firm."
+    ),
+    "not_a_platform_license": (
+        "This is a firm license. The platform needs a platform license issued by 21CEL on request."
+    ),
 }
+
+PLATFORM_TOOL = "platform"
+
+
+def is_platform_token(claims: Mapping[str, Any]) -> bool:
+    """A platform license carries ``lic.features.platform === true``."""
+    lic = claims.get("lic")
+    features = lic.get("features") if isinstance(lic, Mapping) else None
+    return isinstance(features, Mapping) and features.get(PLATFORM_TOOL) is True
+
+
+def kind_mismatch(firm: Firm, claims: Mapping[str, Any]) -> str | None:
+    """Platform tokens only on the platform row, firm tokens only on firms."""
+    platform_token = is_platform_token(claims)
+    if firm.kind == "platform" and not platform_token:
+        return "not_a_platform_license"
+    if firm.kind != "platform" and platform_token:
+        return "platform_license_on_firm"
+    return None
 
 
 def _claim_int(claims: Mapping[str, Any], name: str, default: int) -> int:
@@ -135,6 +160,10 @@ class LicenseService:
         name = firm.name if self.settings.license_send_instance_name else None
         return InstanceInfo(id=firm.instance_id, fp=current_fingerprint(self.settings, firm), name=name)
 
+    def tool_for(self, firm: Firm) -> str:
+        """The licensed tool: ``platform`` for the platform row, the core tool for firms."""
+        return PLATFORM_TOOL if firm.kind == "platform" else self.settings.core_feature
+
     def _touch_clock(self, firm: Firm) -> int:
         now = self.clock()
         if now > firm.last_seen:
@@ -155,8 +184,10 @@ class LicenseService:
             issuer=self.settings.hub_origin,
             keys=self.keyring.keys,
             now=now,
-            core_tool=self.settings.core_feature,
+            core_tool=self.tool_for(firm),
         )
+        if snap.claims and kind_mismatch(firm, snap.claims) is not None:
+            snap = replace(snap, core_on=False, state="invalid", reason="wrong_license_kind")
         self.cache.put(str(firm.id), snap, digest, now)
         return snap
 
@@ -300,6 +331,24 @@ class LicenseService:
                     result=f"invalid_token:{r.reason}",
                 )
                 raise LicenseError("invalid_token", human("invalid_token"), status=502)
+            mismatch = kind_mismatch(firm, r.claims)
+            if mismatch is not None:
+                # release the seat again so the wrong kind of license holds nothing
+                try:
+                    await self.hub.deactivate(canonical, self._instance(firm))
+                except HubUnreachableError:
+                    pass
+                await self._event(session, firm, "activate", mismatch, before, before)
+                await record_audit(
+                    session,
+                    firm_id=firm.id,
+                    actor=actor,
+                    action="license.activate",
+                    target_type="firm",
+                    target_id=str(firm.id),
+                    result=mismatch,
+                )
+                raise LicenseError(mismatch, human(mismatch), status=409)
             sec.set_key(canonical, key_hint(canonical, prefix))
             sec.set_token(resp.token or "", "lease", r.claims)
             self._schedule_refresh(firm, r.claims, now)
@@ -584,6 +633,18 @@ class LicenseService:
                 result=r.state,
             )
             raise LicenseError("license_expired", "This license file has already expired.")
+        mismatch = kind_mismatch(firm, r.claims)
+        if mismatch is not None:
+            await record_audit(
+                session,
+                firm_id=firm.id,
+                actor=actor,
+                action="license.import_file",
+                target_type="firm",
+                target_id=str(firm.id),
+                result=mismatch,
+            )
+            raise LicenseError(mismatch, human(mismatch), status=409)
         sec.set_token(jws, "offline", r.claims)
         firm.next_refresh_at = None
         firm.backoff_until = None

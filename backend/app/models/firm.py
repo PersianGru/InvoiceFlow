@@ -22,6 +22,11 @@ class Firm(Base):
     country: Mapped[str] = mapped_column(String(2), default="DE")
     locale: Mapped[str] = mapped_column(String(8), default="en")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # "firm" or "platform": the platform row holds the platform license and secrets
+    kind: Mapped[str] = mapped_column(String(16), default="firm")
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    erase_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deletion_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     settings: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     ai_routing_policy: Mapped[str] = mapped_column(String(32), default="local_only")
     retention_days: Mapped[int] = mapped_column(Integer, default=3650)
@@ -65,6 +70,10 @@ class Firm(Base):
     hub_error: Mapped[str | None] = mapped_column(String(64), nullable=True)
     shown_message_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)
     revoked_by_list_at: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    @property
+    def is_platform(self) -> bool:
+        return self.kind == "platform"
 
     def __repr__(self) -> str:  # never includes secrets
         return f"<Firm {self.id} state={self.license_state} kh={self.key_hint}>"

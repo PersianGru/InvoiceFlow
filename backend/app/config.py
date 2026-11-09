@@ -149,6 +149,8 @@ class Settings(BaseSettings):
 
     # Platform
     session_ttl_seconds: int = 12 * 3600
+    # 2FA for every account. Only development and tests may switch it off.
+    mfa_enforced: bool = True
     password_min_length: int = 12
     log_level: str = "INFO"
 
@@ -248,6 +250,8 @@ def validate_settings(s: Settings) -> Settings:
         s.master_key_bytes()
     except (ConfigurationError, ValueError):
         problems.append("MASTER_KEY must be base64url of 32 random bytes")
+    if s.is_production and not s.mfa_enforced:
+        problems.append("MFA_ENFORCED=false is refused in production (2FA is mandatory)")
     if s.is_production and not s.database_url.startswith("postgresql"):
         problems.append("DATABASE_URL must be PostgreSQL")
     if s.is_production and not s.store_url.startswith("https://"):

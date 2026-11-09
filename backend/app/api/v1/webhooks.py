@@ -55,6 +55,7 @@ class EndpointIn(BaseModel):
     description: str = Field(default="", max_length=200)
     events: list[str] = Field(default_factory=lambda: list(WEBHOOK_EVENTS))
     active: bool = True
+    client_company_ids: list[uuid.UUID] = Field(default_factory=list, max_length=500)
 
 
 class EndpointOut(BaseModel):
@@ -67,6 +68,7 @@ class EndpointOut(BaseModel):
     disabled_at: str | None
     disabled_reason: str | None
     created_at: str
+    client_company_ids: list[str] = []
 
 
 class EndpointCreated(EndpointOut):
@@ -100,7 +102,24 @@ def endpoint_out(e: WebhookEndpoint) -> EndpointOut:
         disabled_at=e.disabled_at.isoformat() if e.disabled_at else None,
         disabled_reason=e.disabled_reason,
         created_at=e.created_at.isoformat() if e.created_at else "",
+        client_company_ids=list(e.client_company_ids or []),
     )
+
+
+async def _client_ids(session: Any, actor: Actor, ids: list[uuid.UUID]) -> list[str]:
+    """Package G: the endpoint's client companies must exist in the firm; a client-scoped API key can
+    only create endpoints inside its own scope."""
+    from app.models.client_company import ClientCompany
+
+    for cid in ids:
+        if await session.get(ClientCompany, cid) is None:
+            raise HTTPException(404, {"error": "not_found", "message": "Client company not found."})
+    if actor.client_scope:
+        if not ids or not set(ids) <= set(actor.client_scope):
+            raise HTTPException(
+                403, {"error": "client_out_of_scope", "message": "Choose client companies of this API key."}
+            )
+    return sorted(str(c) for c in ids)
 
 
 def delivery_out(d: WebhookDelivery) -> DeliveryOut:
@@ -172,6 +191,7 @@ async def create_endpoint(
         secret_enc=secrets_.seal("webhook_secret", secret),
         active=body.active,
         created_by_user_id=actor.user_id,
+        client_company_ids=await _client_ids(session, actor, body.client_company_ids),
     )
     session.add(e)
     await session.flush()
@@ -200,6 +220,7 @@ async def update_endpoint(
     e.url = validate_url(body.url, settings)
     e.description = body.description.strip()
     e.events = _events(body.events)
+    e.client_company_ids = await _client_ids(session, actor, body.client_company_ids)
     if body.active and not e.active:
         e.active, e.disabled_at, e.disabled_reason, e.consecutive_failures = True, None, None, 0
     elif not body.active and e.active:

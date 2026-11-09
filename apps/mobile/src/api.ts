@@ -29,6 +29,8 @@ export interface User {
   role: string;
   client_company_id: string | null;
   locale: string;
+  mfa_setup_required?: boolean;
+  totp_enabled?: boolean;
 }
 
 export interface DocumentRow {
@@ -135,11 +137,14 @@ export class InvoiceFlowClient {
   }
 
   /** Signs in; the session token comes from the response header and is stored on the client. */
-  async login(email: string, password: string, totpCode?: string): Promise<User> {
+  async login(email: string, password: string, totpCode?: string, recoveryCode?: string): Promise<User> {
+    const body: Record<string, string> = { email, password };
+    if (totpCode) body.totp_code = totpCode;
+    if (recoveryCode) body.recovery_code = recoveryCode;
     const res = await this.fetchImpl(`${this.baseUrl}/api/v1/auth/login`, {
       method: "POST",
       headers: { accept: "application/json", "content-type": "application/json" },
-      body: JSON.stringify(totpCode ? { email, password, totp_code: totpCode } : { email, password }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) throw await parseError(res);
     const token = res.headers.get("x-session-token");
@@ -158,6 +163,15 @@ export class InvoiceFlowClient {
 
   me(): Promise<User> {
     return this.request<User>("GET", "/api/v1/auth/me");
+  }
+
+  /** Mandatory 2FA (0.11): the otpauth URI opens the authenticator app on the same phone. */
+  totpSetup(): Promise<{ otpauth_uri: string; secret: string }> {
+    return this.request("POST", "/api/v1/users/me/totp/setup");
+  }
+
+  totpConfirm(code: string): Promise<{ recovery_codes: string[] }> {
+    return this.request("POST", "/api/v1/users/me/totp/confirm", { code });
   }
 
   summary(): Promise<Summary> {

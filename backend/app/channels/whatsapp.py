@@ -56,6 +56,7 @@ class WhatsAppAdapter:
         for entry in payload.get("entry") or []:
             for change in entry.get("changes") or []:
                 value = change.get("value") or {}
+                number = str((value.get("metadata") or {}).get("phone_number_id") or "")
                 names = {
                     c.get("wa_id"): (c.get("profile") or {}).get("name", "")
                     for c in value.get("contacts") or []
@@ -86,6 +87,9 @@ class WhatsAppAdapter:
                             text=text,
                             files=files,
                             reply_to=str(sender),
+                            chat_type="private",
+                            chat_title=number,  # the receiving number (dedicated numbers route by it)
+                            transport=self,
                         )
                     )
         return out

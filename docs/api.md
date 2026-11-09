@@ -141,3 +141,21 @@ Scopes `bank:read` / `bank:write` for API keys; firm users need `bank.view` / `b
 | `GET/PUT /connectors/{key}/clients/{client_id}`, `POST …/test`, `POST /connectors/{key}/receive` | receiving side of network connectors |
 
 Documents carry `payment_status` (`unpaid` / `partial` / `paid`), `paid_amount` and `paid_at`; the webhook event `invoice.paid` fires when a document becomes paid (payload = the document plus a `payment` object). Export columns: `payment_status`, `paid_amount`, `paid_at`.
+
+## Additions in 0.11
+
+| Area | Endpoints |
+|---|---|
+| Accounts | `POST /auth/forgot-password`, `POST /auth/link/inspect`, `POST /auth/link/complete`, `POST /users/invite` (no password; returns `link`), `POST /users/{id}/resend-invite`, `/reset-password`, `/reset-2fa`, `/deactivate`, `/reactivate`, `/delete`, `PATCH /users/{id}`, `GET /users/deleted`, `POST /users/deleted/{id}/reveal`, `POST /users/me/totp/setup` (QR SVG), `/confirm` (recovery codes), `POST /users/me/recovery-codes` |
+| Platform | `GET /setup/status`, `POST /setup`, `POST /setup/restore`, `GET /platform/overview`, `POST /platform/firms`, `/platform/firms/{id}/deactivate|reactivate|delete|backup|restore`, `POST /platform/switch` |
+| Settings | `GET /platform/settings`, `PUT /platform/settings/{smtp|imap|inbound_webhook|ai|backup}`, `PUT /platform/domain`, `POST /platform/domain/check`, `GET /firm-settings`, `PUT|DELETE /firm-settings/{smtp|imap|backup}`, `POST /firm-settings/{smtp|imap}/test`, `PATCH /firm-settings/domains/subdomain`, `PUT|DELETE /firm-settings/domains/custom`, `POST /firm-settings/domains/custom/check` |
+| Clients | `POST /client-companies/{id}/inbound-address/regenerate`, `POST /client-companies/{id}/intake-pause` |
+| Channels | `PATCH /sender-mappings/{id}` (`accept_from`, `active`), `GET|POST|DELETE /channel-bots`, `/platform/channel-bots`, `POST /channels/telegram/webhook/{bot_id}`, `GET|POST /channels/whatsapp/webhook/{bot_id}` |
+| Trash | `POST /documents/trash/preview`, `POST /documents/trash`, `GET /trash`, `POST /trash/{id}/restore`, `POST /trash/{id}/purge`, `GET /trash-requests`, `POST /trash-requests/{id}/approve|reject` |
+| Keys, webhooks | `api_keys.client_company_ids`, `allowed_cidrs`; `PATCH /api-keys/{id}`, `POST /api-keys/{id}/rotate`; `webhook_endpoints.client_company_ids`. A client-scoped key sees only its client companies; uploads must name one (`403 client_out_of_scope`). |
+| Backups | `GET|POST /backups`, `POST /backups/{id}/reveal` (2FA code), `GET /backups/{id}/download`, `POST /backups/{id}/restore`, `POST /backups/recovery-key[/confirm]`, the same under `/platform/backups` and `/platform/recovery-key` |
+
+New error codes: `mfa_setup_required` (403), `choose_firm` (409), `firm_inactive` (403), `max_firms_reached`
+(402), `license_key_required` (422), `platform_license_on_firm` / `not_a_platform_license` (409),
+`intake_paused` (423), `ip_not_allowed` (403), `client_out_of_scope` (403), `cooling_off` (409),
+`reveals_used_up` (409).

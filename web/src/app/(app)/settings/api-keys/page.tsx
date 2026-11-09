@@ -3,7 +3,8 @@ import { useState, type FormEvent } from "react";
 
 import { Badge, Button, Card, Field, Input, Notice, Textarea } from "@/components/ui";
 import { formatDateTime } from "@/i18n";
-import { ApiError, API_URL, del, get, post, type ApiKeyRow } from "@/lib/api";
+import { ClientPicker } from "@/components/client-picker";
+import { ApiError, API_URL, del, get, post, type ApiKeyRow, type ClientCompany } from "@/lib/api";
 import { useApp } from "@/lib/app-context";
 import { API_SCOPES } from "@/lib/integrations";
 import { useFetch } from "@/lib/use-fetch";
@@ -11,7 +12,9 @@ import { useFetch } from "@/lib/use-fetch";
 export default function ApiKeysPage() {
   const { t, locale, license, refreshLicense } = useApp();
   const keys = useFetch<ApiKeyRow[]>(() => get<ApiKeyRow[]>("/api/v1/api-keys"), []);
-  const [form, setForm] = useState({ name: "", scopes: ["documents:read", "documents:write", "exports:read"] as string[], rate_limit_per_minute: 120 });
+  const [form, setForm] = useState({ name: "", scopes: ["documents:read", "documents:write", "exports:read"] as string[], rate_limit_per_minute: 120, client_company_ids: [] as string[], cidrs: "" });
+  const clients = useFetch<ClientCompany[]>(() => get<ClientCompany[]>("/api/v1/client-companies"), []);
+  const clientName = (id: string) => (clients.data ?? []).find((c) => c.id === id)?.name ?? "…";
   const [created, setCreated] = useState<string | null>(null);
   const [flash, setFlash] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
   const apiOn = license?.features?.api === true;
@@ -20,9 +23,15 @@ export default function ApiKeysPage() {
     e.preventDefault();
     setFlash(null);
     try {
-      const k = await post<ApiKeyRow & { key: string }>("/api/v1/api-keys", form);
+      const k = await post<ApiKeyRow & { key: string }>("/api/v1/api-keys", {
+        name: form.name,
+        scopes: form.scopes,
+        rate_limit_per_minute: form.rate_limit_per_minute,
+        client_company_ids: form.client_company_ids,
+        allowed_cidrs: form.cidrs.split(/[\s,]+/).filter(Boolean),
+      });
       setCreated(k.key);
-      setForm({ ...form, name: "" });
+      setForm({ ...form, name: "", client_company_ids: [], cidrs: "" });
       await keys.reload();
     } catch (err) {
       setFlash({ tone: "danger", text: err instanceof ApiError ? err.message : t("common.error") });
@@ -97,15 +106,38 @@ export default function ApiKeysPage() {
                       </Badge>
                     ))}
                   </td>
-                  <td className="p-2 tabular-nums">{k.rate_limit_per_minute}</td>
+                  <td className="p-2 tabular-nums">
+                    {k.rate_limit_per_minute}
+                    <div className="text-xs text-neutral-600">
+                      {k.client_company_ids?.length ? k.client_company_ids.map(clientName).join(", ") : t("scope.all")}
+                      {k.allowed_cidrs?.length ? ` · ${k.allowed_cidrs.join(", ")}` : ""}
+                    </div>
+                  </td>
                   <td className="whitespace-nowrap p-2">{k.last_used_at ? formatDateTime(locale, k.last_used_at) : t("common.none")}</td>
                   <td className="p-2 text-right">
                     {k.revoked_at ? (
                       <Badge tone="neutral">{t("apikeys.revoked")}</Badge>
                     ) : (
-                      <Button size="sm" variant="danger" onClick={() => revoke(k.id)}>
-                        {t("apikeys.revoke")}
-                      </Button>
+                      <span className="flex justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={async () => {
+                            try {
+                              const r = await post<ApiKeyRow & { key: string }>(`/api/v1/api-keys/${k.id}/rotate`);
+                              setCreated(r.key);
+                              await keys.reload();
+                            } catch (err) {
+                              setFlash({ tone: "danger", text: err instanceof ApiError ? err.message : t("common.error") });
+                            }
+                          }}
+                        >
+                          {t("apikeys.rotate")}
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={() => revoke(k.id)}>
+                          {t("apikeys.revoke")}
+                        </Button>
+                      </span>
                     )}
                   </td>
                 </tr>
@@ -141,6 +173,10 @@ export default function ApiKeysPage() {
               </label>
             ))}
           </fieldset>
+          <ClientPicker id="k-clients" clients={clients.data ?? []} value={form.client_company_ids} onChange={(v) => setForm({ ...form, client_company_ids: v })} />
+          <Field id="k-cidrs" label={t("apikeys.cidrs")} hint={t("apikeys.cidrs_hint")}>
+            <Input id="k-cidrs" placeholder="203.0.113.0/24" value={form.cidrs} onChange={(e) => setForm({ ...form, cidrs: e.target.value })} />
+          </Field>
           <Field id="k-rate" label={t("apikeys.rate_limit")}>
             <Input id="k-rate" type="number" min={1} max={6000} value={form.rate_limit_per_minute} onChange={(e) => setForm({ ...form, rate_limit_per_minute: Number(e.target.value) || 120 })} />
           </Field>

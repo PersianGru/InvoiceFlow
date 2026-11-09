@@ -101,6 +101,11 @@ class ApiKey(Base):
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # limit to client companies (empty = whole firm) and to source networks
+    client_company_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    allowed_cidrs: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    description: Mapped[str] = mapped_column(String(300), default="")
+    last_used_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class WebhookEndpoint(Base):
@@ -118,6 +123,8 @@ class WebhookEndpoint(Base):
     disabled_reason: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # only events of these client companies (empty = all)
+    client_company_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)
 
 
 class WebhookDelivery(Base):

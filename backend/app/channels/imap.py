@@ -8,7 +8,7 @@ import logging
 from collections.abc import Awaitable, Callable, Iterator
 from typing import Protocol
 
-from app.config import Settings
+from app.settings_store import Section
 
 log = logging.getLogger("invoiceflow.channels.imap")
 
@@ -22,12 +22,32 @@ class Mailbox(Protocol):
 
 
 class ImapMailbox:
-    def __init__(self, settings: Settings) -> None:
-        s = settings
-        cls = imaplib.IMAP4_SSL if s.imap_ssl else imaplib.IMAP4
-        self.conn = cls(s.imap_host or "", s.imap_port, timeout=30)
-        self.conn.login(s.imap_user or "", s.imap_password or "")
-        self.conn.select(s.imap_folder)
+    def __init__(
+        self,
+        host: str,
+        port: int = 993,
+        ssl: bool = True,
+        user: str = "",
+        password: str = "",
+        folder: str = "INBOX",
+    ) -> None:
+        cls = imaplib.IMAP4_SSL if ssl else imaplib.IMAP4
+        self.conn = cls(host, port, timeout=30)
+        self.conn.login(user, password)
+        status, _ = self.conn.select(folder)
+        if status != "OK":
+            raise imaplib.IMAP4.error(f"folder {folder!r} not found")
+
+    @classmethod
+    def from_section(cls, section: Section) -> ImapMailbox:
+        return cls(
+            str(section.get("host", "")),
+            int(section.get("port", 993)),
+            bool(section.get("ssl", True)),
+            str(section.get("user", "")),
+            str(section.get("password", "")),
+            str(section.get("folder", "INBOX")),
+        )
 
     def unseen(self) -> Iterator[tuple[str, bytes]]:
         status, data = self.conn.uid("SEARCH", "UNSEEN")

@@ -157,8 +157,39 @@ async def upload(
     )  # license gate first: nothing is stored for an unlicensed firm
     if actor.is_client:
         client_company_id = actor.client_company_id
-    if client_company_id is not None and await session.get(ClientCompany, client_company_id) is None:
+    elif actor.client_scope:
+        if client_company_id is None and len(actor.client_scope) == 1:
+            client_company_id = next(iter(actor.client_scope))
+        if client_company_id is None or client_company_id not in actor.client_scope:
+            raise HTTPException(
+                403,
+                {
+                    "error": "client_out_of_scope",
+                    "message": "This API key may only upload for its client companies.",
+                },
+            )
+    client = await session.get(ClientCompany, client_company_id) if client_company_id is not None else None
+    if client_company_id is not None and client is None:
         raise HTTPException(404, {"error": "not_found", "message": "Client company not found."})
+    if client is not None:
+        from app.addresses import intake_paused
+
+        pause_channel = "api" if actor.is_api_key else "upload"
+        if intake_paused(client, pause_channel):
+            await record_audit(
+                session,
+                firm_id=firm.id,
+                actor=actor,
+                action="channel.intake_paused",
+                target_type="client_company",
+                target_id=str(client.id),
+                after={"channel": pause_channel},
+                result="refused",
+            )
+            raise HTTPException(
+                423,
+                {"error": "intake_paused", "message": f"Sending documents for {client.name} is paused."},
+            )
     data = await file.read(security.MAX_UPLOAD_BYTES + 1)
     idem = await idempotency_begin(
         request, session, firm.id, body=(file.filename or "").encode() + b"" + data
@@ -258,8 +289,9 @@ async def list_documents(
     limit: int = Query(default=50, ge=1, le=500),
 ) -> DocumentPage:
     stmt = select(Document).where(Document.deleted_at.is_(None))
-    if actor.is_client:
-        stmt = stmt.where(Document.client_company_id == actor.client_company_id)
+    scoped = actor.scoped_client_ids()
+    if scoped is not None:
+        stmt = stmt.where(Document.client_company_id.in_(scoped))
     elif client_company_id is not None:
         stmt = stmt.where(Document.client_company_id == client_company_id)
     if status:
@@ -303,11 +335,7 @@ async def list_documents(
 
 async def _get_doc(session: SessionDep, actor: Actor, document_id: uuid.UUID) -> Document:
     d = await session.get(Document, document_id)
-    if (
-        d is None
-        or d.deleted_at is not None
-        or (actor.is_client and d.client_company_id != actor.client_company_id)
-    ):
+    if d is None or d.deleted_at is not None or not actor.in_scope(d.client_company_id):
         raise HTTPException(404, {"error": "not_found", "message": "Document not found."})
     return d
 

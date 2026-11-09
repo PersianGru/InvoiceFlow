@@ -48,6 +48,7 @@ class LicenseView(BaseModel):
     messages: list[dict[str, Any]]
     store_links: dict[str, str]
     banner: dict[str, str] | None
+    kind: str = "firm"
 
 
 def _store_links(store_url: str, installation_id: str) -> dict[str, str]:
@@ -101,6 +102,21 @@ async def _view(firm: Any, svc: Any, settings: Any) -> LicenseView:
     snap = svc.snapshot(firm)
     sec = FirmSecrets(svc.master, firm)
     d = snap.public_dict()
+    if firm.kind == "platform":
+        # the platform license only raises the number of firms; without one the platform runs 1 firm
+        banner = None
+        if snap.state in ("expired", "invalid") or (snap.state == "grace"):
+            banner = _banner(snap.state, None, firm.hub_error, snap.reason)
+        return LicenseView(
+            **d,
+            installation_id=firm.instance_id,
+            installation_id_grouped=format_grouped(firm.instance_id),
+            has_key=sec.key() is not None,
+            messages=messages_with_seen(snap, firm),
+            store_links={},
+            banner=banner,
+            kind="platform",
+        )
     return LicenseView(
         **d,
         installation_id=firm.instance_id,

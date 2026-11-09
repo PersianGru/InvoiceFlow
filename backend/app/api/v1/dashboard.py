@@ -16,7 +16,7 @@ from sqlalchemy import case, func, select
 
 from app.api.deps import FirmDep, LicenseServiceDep, SessionDep, require
 from app.audit.service import record_audit
-from app.channels.intake import send_question
+from app.channels.intake import question_transports, send_question
 from app.db.rls import set_tenant
 from app.licensing.gate import check_feature
 from app.models.comment import DocumentComment
@@ -34,11 +34,7 @@ router = APIRouter(tags=["dashboard"])
 
 async def _doc(session: SessionDep, actor: Actor, document_id: uuid.UUID) -> Document:
     d = await session.get(Document, document_id)
-    if (
-        d is None
-        or d.deleted_at is not None
-        or (actor.is_client and d.client_company_id != actor.client_company_id)
-    ):
+    if d is None or d.deleted_at is not None or not actor.in_scope(d.client_company_id):
         raise HTTPException(404, {"error": "not_found", "message": "Document not found."})
     return d
 
@@ -173,7 +169,9 @@ async def add_comment(
         d.status = DocumentStatus.needs_info
         d.review_status = "needs_info"
         if d.channel.value in ("email", "telegram", "whatsapp"):
-            await send_question(session, request.app.state.channels.transports(), firm, d, c.body)
+            await send_question(
+                session, await question_transports(request, session, firm, d), firm, d, c.body
+            )
     elif kind == "answer":
         for q in (
             await session.execute(

@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.api_keys import KEY_PREFIX, TOKEN_PREFIX, secret_matches, split_key, verify_access_token
 from app.config import Settings
-from app.db.rls import set_platform_bypass, set_tenant
+from app.db.rls import set_client_scope, set_platform_bypass, set_tenant
 from app.licensing.gate import check_feature
 from app.licensing.service import LicenseService
 from app.models.firm import Firm
@@ -86,6 +86,28 @@ async def resolve_api_actor(
         )
     if key.last_used_at is None or now - key.last_used_at > timedelta(seconds=60):
         key.last_used_at = now
+    ip = request.client.host if request.client else None
+    if key.allowed_cidrs and not _ip_allowed(ip, key.allowed_cidrs):
+        await set_tenant(session, firm.id)
+        from app.audit.service import record_audit
+
+        await record_audit(
+            session,
+            firm_id=firm.id,
+            actor=None,
+            action="api_key.denied_ip",
+            target_type="api_key",
+            target_id=str(key.id),
+            after={"ip": ip},
+            result="denied",
+        )
+        raise HTTPException(
+            403, {"error": "ip_not_allowed", "message": "This API key is not allowed from this address."}
+        )
+    key.last_used_ip = ip
+    scope = frozenset(uuid.UUID(c) for c in (key.client_company_ids or []))
+    if scope:
+        await set_client_scope(session, scope)
     await set_tenant(session, firm.id)
     actor = Actor(
         user_id=key.id,
@@ -96,9 +118,28 @@ async def resolve_api_actor(
         ip=request.client.host if request.client else None,
         api_key_id=key.id,
         scopes=frozenset(key.scopes or []),
+        client_scope=scope,
     )
     request.state.actor = actor
     return actor
+
+
+def _ip_allowed(ip: str | None, cidrs: list[str]) -> bool:
+    import ipaddress
+
+    if not ip:
+        return False
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    for c in cidrs:
+        try:
+            if addr in ipaddress.ip_network(c, strict=False):
+                return True
+        except ValueError:
+            continue
+    return False
 
 
 def key_uuid(value: str) -> uuid.UUID | None:

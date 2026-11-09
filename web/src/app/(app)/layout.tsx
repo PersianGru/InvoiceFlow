@@ -9,7 +9,7 @@ import { LOCALES, LOCALE_NAMES, type Locale } from "@/i18n";
 import { post } from "@/lib/api";
 import { useApp } from "@/lib/app-context";
 
-const NAV: Array<{ href: string; key: "nav.inbox" | "nav.exports" | "nav.bank" | "nav.reporting" | "nav.clients" | "nav.suppliers" | "nav.stats" | "nav.audit"; roles: string[] }> = [
+const NAV: Array<{ href: string; key: "nav.inbox" | "nav.exports" | "nav.bank" | "nav.reporting" | "nav.clients" | "nav.suppliers" | "nav.stats" | "nav.audit" | "nav.trash"; roles: string[] }> = [
   { href: "/inbox", key: "nav.inbox", roles: ["firm_owner", "accountant", "junior_accountant", "client_admin", "client_user"] },
   { href: "/exports", key: "nav.exports", roles: ["firm_owner", "accountant", "junior_accountant"] },
   { href: "/bank", key: "nav.bank", roles: ["firm_owner", "accountant", "junior_accountant"] },
@@ -18,6 +18,7 @@ const NAV: Array<{ href: string; key: "nav.inbox" | "nav.exports" | "nav.bank" |
   { href: "/suppliers", key: "nav.suppliers", roles: ["firm_owner", "accountant", "junior_accountant"] },
   { href: "/stats", key: "nav.stats", roles: ["firm_owner", "accountant"] },
   { href: "/audit", key: "nav.audit", roles: ["firm_owner", "accountant"] },
+  { href: "/trash", key: "nav.trash", roles: ["firm_owner", "accountant"] },
 ];
 
 export default function AppLayout({ children }: { children: ReactNode }) {
@@ -27,7 +28,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (ready && !user) router.replace("/login");
+    else if (ready && user?.mfa_setup_required) router.replace("/setup-2fa");
     else if (ready && user && (user.role === "client_admin" || user.role === "client_user")) router.replace("/my");
+    else if (ready && user?.role === "super_admin" && !user.acting_firm_id) router.replace("/platform");
   }, [ready, user, router]);
 
   if (!ready || !user) {
@@ -37,8 +40,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </main>
     );
   }
-  const isOwner = user.role === "firm_owner";
-  const items = NAV.filter((n) => n.roles.includes(user.role));
+  const isOwner = user.role === "firm_owner" || user.role === "super_admin";
+  const settingsHref = isOwner ? "/settings/license" : user.role === "accountant" ? "/settings/users" : null;
+  const items = NAV.filter((n) => n.roles.includes(user.role) || user.role === "super_admin");
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -56,8 +60,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 {t(n.key)}
               </Link>
             ))}
-            {isOwner ? (
-              <Link href="/settings/license" aria-current={pathname.startsWith("/settings") ? "page" : undefined} className={cx("rounded-md px-3 py-1.5 text-sm", pathname.startsWith("/settings") ? "bg-neutral-200 font-medium dark:bg-neutral-800" : "hover:bg-neutral-100 dark:hover:bg-neutral-800")}>
+            {settingsHref ? (
+              <Link href={settingsHref} aria-current={pathname.startsWith("/settings") ? "page" : undefined} className={cx("rounded-md px-3 py-1.5 text-sm", pathname.startsWith("/settings") ? "bg-neutral-200 font-medium dark:bg-neutral-800" : "hover:bg-neutral-100 dark:hover:bg-neutral-800")}>
                 {t("nav.settings")}
               </Link>
             ) : null}
@@ -91,6 +95,24 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
+      {user.role === "super_admin" && user.acting_firm_id ? (
+        <div role="status" className="border-b border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-2">
+            <span>{t("platform.acting_banner", { firm: firm?.name ?? "" })}</span>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={async () => {
+                await post("/api/v1/platform/switch", { firm_id: null });
+                await refreshSession();
+                router.replace("/platform");
+              }}
+            >
+              {t("platform.back")}
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <LicenseBanner />
       <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-4">
         {children}

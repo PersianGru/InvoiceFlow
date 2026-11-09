@@ -26,9 +26,12 @@ from app.db.session import dispose_engine, get_sessionmaker, init_engine
 from app.jobs.retention import run_retention
 from app.licensing.refresh import refresh_due_firms, refresh_revocations
 from app.logging_setup import configure_logging
+from app.mail import SmtpMailer
 from app.main import build_license_service
 from app.pipeline.factory import build_runner, build_scanner
 from app.pipeline.jobs import process_document_job
+from app.security.crypto import MasterKey
+from app.settings_store import SettingsStore
 from app.storage import build_storage
 from app.webhooks.deliver import deliver_due
 
@@ -42,9 +45,8 @@ async def startup(ctx: dict[str, Any]) -> None:
     ctx["settings"] = settings
     ctx["service"] = build_license_service(settings)
     ctx["storage"] = build_storage(settings)
-    ctx["runner"] = build_runner(
-        settings, ctx["storage"], ctx["service"], get_sessionmaker(), download_models=True
-    )
+    ctx["store"] = SettingsStore(MasterKey(settings.master_key_bytes()))
+    await _ensure_runner(ctx)
     ctx["channels"] = ChannelHub(settings)
     ctx["connectors"] = ConnectorRegistry()
     ctx["scanner"] = build_scanner(settings)
@@ -64,7 +66,28 @@ async def shutdown(ctx: dict[str, Any]) -> None:
     await dispose_engine()
 
 
+async def _ensure_runner(ctx: dict[str, Any]) -> None:
+    """Build the pipeline with the dashboard's AI settings; rebuild when they change."""
+    from app.ai_settings import effective_settings
+
+    try:
+        effective, sig = await effective_settings(ctx["settings"], ctx["store"])
+    except Exception as e:  # noqa: BLE001 - no database yet: run with the environment
+        log.warning("AI settings not read: %s", type(e).__name__)
+        effective, sig = ctx["settings"], "env"
+    if ctx.get("runner") is not None and ctx.get("ai_signature") == sig:
+        return
+    ctx["runner"] = build_runner(
+        effective, ctx["storage"], ctx["service"], get_sessionmaker(), download_models=True
+    )
+    ctx["ai_signature"] = sig
+    log.info(
+        "pipeline built (AI settings %s)", "from the dashboard" if sig != "env" else "from the environment"
+    )
+
+
 async def process_document(ctx: dict[str, Any], document_id: str) -> str:
+    await _ensure_runner(ctx)
     outcome = await process_document_job(get_sessionmaker(), ctx["runner"], uuid.UUID(document_id))
     if outcome == "approved" and ctx.get("redis") is not None:  # auto-approval → connectors with auto_push
         await ctx["redis"].enqueue_job("connector_push", document_id, _job_id=f"connector:{document_id}")
@@ -114,12 +137,15 @@ async def bank_feed_tick(ctx: dict[str, Any]) -> dict[str, int]:
 
 
 async def email_poll_tick(ctx: dict[str, Any]) -> dict[str, int]:
-    """IMAP polling when configured; each message is one transaction through the channel intake."""
-    settings = ctx["settings"]
-    if not settings.imap_host:
-        return {"handled": 0, "failed": 0}
+    """IMAP polling: the platform mailbox and every firm's own mailbox (dashboard settings, J). Each
+    message is one transaction through the channel intake; one failing mailbox never stops the others."""
     from app.jobs.queue import ArqQueue
 
+    settings = ctx["settings"]
+    store = ctx["store"]
+    mailboxes = await imap_sections(store)
+    if not mailboxes:
+        return {"handled": 0, "failed": 0}
     queue = ArqQueue(settings.redis_url)
     deps = IntakeDeps(
         settings=settings,
@@ -128,6 +154,8 @@ async def email_poll_tick(ctx: dict[str, Any]) -> dict[str, int]:
         service=ctx["service"],
         queue=queue,
         transports=ctx["channels"].transports(),
+        store=store,
+        mailer=SmtpMailer(store),
     )
 
     async def handle_raw(raw: bytes) -> str:
@@ -135,11 +163,100 @@ async def email_poll_tick(ctx: dict[str, Any]) -> dict[str, int]:
             async with session.begin():
                 return (await handle_inbound(session, deps, parse_mime(raw))).outcome
 
+    totals = {"handled": 0, "failed": 0, "mailboxes": 0}
     try:
-        mailbox = await asyncio.to_thread(ImapMailbox, settings)
-        return await poll_mailbox(mailbox, handle_raw)
+        for section in mailboxes:
+            try:
+                mailbox = await asyncio.to_thread(ImapMailbox.from_section, section)
+            except Exception as e:  # noqa: BLE001 - a wrong password must not stop the other mailboxes
+                log.warning("imap login failed (%s): %s", section.source, type(e).__name__)
+                totals["failed"] += 1
+                continue
+            counts = await poll_mailbox(mailbox, handle_raw)
+            totals["handled"] += counts["handled"]
+            totals["failed"] += counts["failed"]
+            totals["mailboxes"] += 1
+        return totals
     finally:
         await queue.aclose()
+
+
+async def imap_sections(store: Any) -> list[Any]:
+    """The platform mailbox plus every firm's own enabled mailbox."""
+    from sqlalchemy import select
+
+    from app.db.rls import set_platform_bypass
+    from app.models.config import ConfigEntry
+    from app.models.firm import Firm
+
+    out = []
+    platform = await store.effective("imap", None)
+    if platform.get("host"):
+        out.append(platform)
+    async with get_sessionmaker()() as session:
+        async with session.begin():
+            await set_platform_bypass(session)
+            firm_ids = (
+                (
+                    await session.execute(
+                        select(ConfigEntry.firm_id)
+                        .join(Firm, Firm.id == ConfigEntry.firm_id)
+                        .where(ConfigEntry.key == "imap", Firm.kind == "firm", Firm.is_active.is_(True))
+                    )
+                )
+                .scalars()
+                .all()
+            )
+    for fid in firm_ids:
+        own = await store.own("imap", fid)
+        if own is not None and own.enabled and own.get("host"):
+            out.append(own)
+    return out
+
+
+async def held_tick(ctx: dict[str, Any]) -> dict[str, int]:
+    """Files a multi-company sender never assigned: quarantine or drop after 24 h."""
+    from app.channels.intake import expire_held
+    from app.db.rls import set_platform_bypass
+
+    deps = IntakeDeps(
+        settings=ctx["settings"],
+        storage=ctx["storage"],
+        scanner=ctx["scanner"],
+        service=ctx["service"],
+        queue=None,
+        transports={},
+        store=ctx["store"],
+    )
+    async with get_sessionmaker()() as session:
+        async with session.begin():
+            await set_platform_bypass(session)
+            return await expire_held(session, deps)
+
+
+async def trash_tick(ctx: dict[str, Any]) -> dict[str, int]:
+    """Purge trashed documents after the firm's trash retention; expire old trash requests."""
+    from app.db.rls import set_platform_bypass
+    from app.trash import expire_requests, purge_due
+
+    async with get_sessionmaker()() as session:
+        async with session.begin():
+            await set_platform_bypass(session)
+            return {
+                "purged": await purge_due(session, ctx["storage"]),
+                "expired": await expire_requests(session),
+            }
+
+
+async def domains_tick(ctx: dict[str, Any]) -> dict[str, int]:
+    """Daily DNS re-check of the platform root and every firm's own domain (never switches off)."""
+    from app.db.rls import set_platform_bypass
+    from app.domains import DnsPythonChecker, check_all
+
+    async with get_sessionmaker()() as session:
+        async with session.begin():
+            await set_platform_bypass(session)
+            return await check_all(session, DnsPythonChecker())
 
 
 class WorkerSettings:
@@ -150,6 +267,9 @@ class WorkerSettings:
         retention_tick,
         webhooks_tick,
         email_poll_tick,
+        domains_tick,
+        held_tick,
+        trash_tick,
         connector_push,
         connector_receive_tick,
         bank_feed_tick,
@@ -162,6 +282,9 @@ class WorkerSettings:
         cron(retention_tick, hour=3, minute=30, unique=True),
         cron(connector_receive_tick, minute=set(range(2, 60, 5)), unique=True),
         cron(bank_feed_tick, hour=5, minute=10, unique=True),
+        cron(domains_tick, hour=4, minute=20, unique=True),
+        cron(held_tick, minute={12, 42}, unique=True),
+        cron(trash_tick, minute=25, unique=True),
     ]
     on_startup = startup
     on_shutdown = shutdown

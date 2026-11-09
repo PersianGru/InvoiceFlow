@@ -1,9 +1,10 @@
 "use client";
 import { useState, type FormEvent } from "react";
 
-import { Button, Card, Field, Input, Notice, Select, Spinner } from "@/components/ui";
+import { Badge, Button, Card, Field, Input, Notice, Select, Spinner } from "@/components/ui";
 import { ApiError, API_URL, get, patch, post, type ClientCompany } from "@/lib/api";
 import { useApp } from "@/lib/app-context";
+import { ClientSecurity } from "@/components/client-security";
 import { useFetch } from "@/lib/use-fetch";
 
 // Every EU member state (plus CH); the Baltic states first, then the rest alphabetically. Each has a
@@ -28,7 +29,8 @@ export default function ClientsPage() {
   const [peppolId, setPeppolId] = useState("");
   const [taxNumber, setTaxNumber] = useState("");
   const [flash, setFlash] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
-  const canManage = user?.role === "firm_owner" || user?.role === "accountant";
+  const [open, setOpen] = useState<string | null>(null);
+  const canManage = user?.role === "firm_owner" || user?.role === "accountant" || user?.role === "super_admin";
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -69,7 +71,24 @@ export default function ClientsPage() {
                   <tr key={c.id} className="border-t border-neutral-100 dark:border-neutral-800">
                     <td className="p-2 font-medium">{c.name}</td>
                     <td className="p-2">{c.country}</td>
-                    <td className="p-2 font-mono text-xs">{c.inbound_email_address ?? (c.inbound_email_local_part ? `${c.inbound_email_local_part}@in.invoiceflow.eu` : t("common.none"))}</td>
+                    <td className="p-2 font-mono text-xs">
+                      {c.inbound_email_address ?? c.inbound_email_local_part ?? t("common.none")}
+                      {Object.values(c.intake_paused ?? {}).some(Boolean) ? (
+                        <span className="ml-1">
+                          <Badge tone="danger">{t("clients.paused")}</Badge>
+                        </span>
+                      ) : null}
+                      {canManage ? (
+                        <button type="button" className="ml-1 font-sans underline" onClick={() => setOpen(open === c.id ? null : c.id)}>
+                          {t("clients.security")}
+                        </button>
+                      ) : null}
+                      {open === c.id ? (
+                        <div className="mt-2 font-sans">
+                          <ClientSecurity client={c} onChanged={clients.reload} onError={(text) => setFlash({ tone: "danger", text })} />
+                        </div>
+                      ) : null}
+                    </td>
                     {(["peppol_id", "tax_number"] as const).map((field) => (
                       <td key={field} className="p-2">
                         {canManage ? (

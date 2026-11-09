@@ -6,7 +6,19 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
-from sqlalchemy import BigInteger, Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, func
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -40,6 +52,7 @@ class Document(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
     firm_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("firms.id", ondelete="CASCADE"), index=True)
+    channel_bot_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)  # D: the bot it came through
     client_company_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("client_companies.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -64,6 +77,11 @@ class Document(Base):
     erasure_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     retention_rule: Mapped[str | None] = mapped_column(String(64), nullable=True)  # e.g. DE:10y:2026.11
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # trash
+    deleted_by_user_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    delete_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    purge_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    purged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # summary columns filled by the pipeline (inbox filters, duplicate detection)

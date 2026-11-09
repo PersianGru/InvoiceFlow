@@ -27,9 +27,11 @@ from app.licensing.keys import keys_from_config
 from app.licensing.service import LicenseService
 from app.licensing.state import LicenseStateCache
 from app.logging_setup import configure_logging
+from app.mail import SmtpMailer
 from app.pipeline.factory import build_runner, build_scanner
 from app.pipeline.jobs import process_document_job
 from app.security.crypto import MasterKey
+from app.settings_store import SettingsStore
 from app.storage import Storage, build_storage
 from app.webhooks.deliver import deliver_due
 
@@ -88,10 +90,12 @@ def create_app(
             settings.app_env,
             LICENSE_SPEC,
         )
+        await _announce_setup(settings)
         try:
             yield
         finally:
             await app.state.queue.aclose()
+            await app.state.backup_queue.aclose()
             await app.state.channels.aclose()
             await app.state.connectors.aclose()
             await app.state.license_service.hub.aclose()
@@ -114,6 +118,9 @@ def create_app(
     app.state.rate_limiter = RateLimiter()
     app.state.channels = ChannelHub(settings)
     app.state.connectors = ConnectorRegistry()
+    app.state.settings_store = SettingsStore(app.state.master_key)
+    app.state.mailer = SmtpMailer(app.state.settings_store)
+    app.state.backup_queue = _backup_queue(settings, app)
     if settings.cors_origins:
         app.add_middleware(
             CORSMiddleware,
@@ -201,6 +208,39 @@ OPENAPI_TAGS = [
     {"name": "api-keys", "description": "API keys and the OAuth2 token endpoint."},
     {"name": "license", "description": "The firm's 21CEL license (License page API)."},
 ]
+
+
+def _backup_queue(settings: Settings, app: FastAPI) -> Any:
+    """Backups run in the ``backup`` container (Arq queue); single-process development runs them inline."""
+    from app.backup.queue import ArqBackupQueue, InlineBackupQueue
+    from app.backup.service import Deps
+
+    if settings.queue_backend == "arq":
+        return ArqBackupQueue(settings.redis_url)
+    return InlineBackupQueue(
+        lambda: Deps(
+            get_sessionmaker(), app.state.storage, app.state.settings_store, app.state.master_key, settings
+        )
+    )
+
+
+async def _announce_setup(settings: Settings) -> None:
+    """First run: print the one-time setup code while no super admin exists."""
+    from app.platform import ensure_setup_code
+
+    try:
+        async with get_sessionmaker()() as session:
+            async with session.begin():
+                code = await ensure_setup_code(session, settings)
+    except Exception as e:  # noqa: BLE001 - the database may not be migrated yet; the API still starts
+        log.warning("setup check skipped: %s", type(e).__name__)
+        return
+    if code:
+        log.warning(
+            "FIRST RUN: open the dashboard and use the setup code %s to create the platform admin. "
+            "The code stops working once the platform admin exists.",
+            code,
+        )
 
 
 def _origins(configured: str) -> list[str]:

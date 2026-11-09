@@ -16,9 +16,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 async def set_tenant(session: AsyncSession, firm_id: uuid.UUID | str) -> None:
     await session.execute(
-        text("SELECT set_config('app.firm_id', :fid, true), set_config('app.bypass_rls', 'off', true)"),
-        {"fid": str(firm_id)},
+        text(
+            "SELECT set_config('app.firm_id', :fid, true), set_config('app.bypass_rls', 'off', true), "
+            "set_config('app.client_scope', :scope, true)"
+        ),
+        {"fid": str(firm_id), "scope": session.info.get("client_scope", "")},
     )
+
+
+async def set_client_scope(session: AsyncSession, client_ids: frozenset[uuid.UUID]) -> None:
+    """rows of other client companies become invisible for the rest of the request
+    (kept in ``session.info`` so later ``set_tenant`` calls in new transactions keep it)."""
+    value = ",".join(sorted(str(c) for c in client_ids))
+    session.info["client_scope"] = value
+    await session.execute(text("SELECT set_config('app.client_scope', :scope, true)"), {"scope": value})
 
 
 async def set_platform_bypass(session: AsyncSession) -> None:

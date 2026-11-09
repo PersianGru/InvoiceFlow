@@ -3,8 +3,10 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, LargeBinary, String, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, new_uuid
@@ -47,6 +49,25 @@ class User(Base):
     failed_logins: Mapped[int] = mapped_column(Integer, default=0)
     last_failed_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # one-time recovery codes (SHA-256 each), deactivation and deletion
+    recovery_codes: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    deactivated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    password_set_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    @property
+    def has_password(self) -> bool:
+        return bool(self.password_hash) and not self.password_hash.startswith("!")
+
+    @property
+    def status(self) -> str:
+        if self.deleted_at is not None:
+            return "deleted"
+        if not self.is_active:
+            return "deactivated"
+        if not self.has_password:
+            return "invited"
+        return "active"
 
 
 class UserSession(Base):
@@ -62,3 +83,8 @@ class UserSession(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     mfa_passed: Mapped[bool] = mapped_column(Boolean, default=False)
+    # a super admin working inside a firm; None = platform view
+    acting_firm_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("firms.id", ondelete="SET NULL"), nullable=True
+    )
+    meta: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)

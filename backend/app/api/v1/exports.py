@@ -35,6 +35,18 @@ from app.storage.base import Storage
 from app.tenancy.context import Actor
 from app.webhooks import emit_event
 
+
+def _scoped_exports(stmt: Any, actor: Actor) -> Any:
+    """A client-scoped API key sees only exports of its client companies."""
+    scoped = actor.scoped_client_ids()
+    return stmt.where(Export.client_company_id.in_(scoped)) if scoped is not None else stmt
+
+
+def _export_visible(e: Export, actor: Actor) -> bool:
+    scoped = actor.scoped_client_ids()
+    return scoped is None or e.client_company_id in scoped
+
+
 router = APIRouter(tags=["exports"])
 
 TEMPLATE_FORMATS = ("csv", "xlsx", "datev")
@@ -244,8 +256,9 @@ async def _select_documents(session: SessionDep, actor: Actor, body: ExportIn) -
         Document.extracted.isnot(None),
         Document.processing_restricted.is_(False),
     )
-    if actor.is_client:
-        stmt = stmt.where(Document.client_company_id == actor.client_company_id)
+    scoped = actor.scoped_client_ids()
+    if scoped is not None:
+        stmt = stmt.where(Document.client_company_id.in_(scoped))
     if body.document_ids:
         stmt = stmt.where(Document.id.in_(body.document_ids))
     elif body.filters is not None:
@@ -372,7 +385,14 @@ async def list_exports(
     offset: int = Query(default=0, ge=0),
 ) -> list[ExportOut]:
     rows = (
-        (await session.execute(select(Export).order_by(Export.created_at.desc()).offset(offset).limit(limit)))
+        (
+            await session.execute(
+                _scoped_exports(select(Export), actor)
+                .order_by(Export.created_at.desc())
+                .offset(offset)
+                .limit(limit)
+            )
+        )
         .scalars()
         .all()
     )
@@ -384,6 +404,8 @@ async def get_export(
     export_id: uuid.UUID, session: SessionDep, actor: Actor = Depends(require("exports.view"))
 ) -> ExportOut:
     e = await session.get(Export, export_id)
+    if e is not None and not _export_visible(e, actor):
+        e = None
     if e is None:
         raise HTTPException(404, {"error": "not_found", "message": "Export not found."})
     return export_out(e)
@@ -398,6 +420,8 @@ async def download_export(
     actor: Actor = Depends(require("exports.view")),
 ) -> Response:
     e = await session.get(Export, export_id)
+    if e is not None and not _export_visible(e, actor):
+        e = None
     if e is None:
         raise HTTPException(404, {"error": "not_found", "message": "Export not found."})
     data = await _storage(request).get(e.storage_key)
@@ -435,11 +459,7 @@ async def export_single_document(
     if format not in EXPORT_FORMATS:
         raise HTTPException(422, {"error": "invalid_request", "message": f"Unknown format '{format}'."})
     d = await session.get(Document, document_id)
-    if (
-        d is None
-        or d.deleted_at is not None
-        or (actor.is_client and d.client_company_id != actor.client_company_id)
-    ):
+    if d is None or d.deleted_at is not None or not actor.in_scope(d.client_company_id):
         raise HTTPException(404, {"error": "not_found", "message": "Document not found."})
     if d.extracted is None:
         raise HTTPException(
