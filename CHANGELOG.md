@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.1 — invite and reset links (2026-11-09)
+
+- Fix: invite and password-reset links showed "This link has expired or was already used" even when they
+  were new. The link page now keeps the token after removing it from the address bar. Links that failed
+  this way were never used and work after the update while they are valid (invites 24 h, resets 15 min).
+
 ## 0.11.0 — platform, users, per-client channels, backups (2026-11-09)
 
 Behaviour changes (read before upgrading):
