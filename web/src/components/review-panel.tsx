@@ -4,6 +4,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { AllowancesEditor, type Line, LinesEditor } from "./lines-editor";
 import { ReviewFields, setPath } from "./review-fields";
 import { Badge, Button, Card, Notice, cx } from "./ui";
 import type { Invoice } from "@/lib/api";
@@ -61,6 +62,14 @@ export function ReviewPanel({ documentId, invoice, onFocusField, focused, onChan
     return () => window.removeEventListener("keydown", onKey);
   }, [act, canApprove, router]);
 
+  const lines = (Array.isArray(draft.lines) ? draft.lines : []) as Line[];
+  const allowances = (Array.isArray(draft.allowances_charges) ? draft.allowances_charges : []) as Line[];
+  // a table is corrected as a whole; per-row provenance is dropped (the server marks the list as confirmed)
+  const onRows = (key: "lines" | "allowances_charges") => (next: Line[]) => {
+    const clean = next.map((ln) => Object.fromEntries(Object.entries(ln).filter(([k, v]) => k !== "meta" && v !== null && v !== undefined)));
+    setDraft((d) => ({ ...d, [key]: clean }));
+    setCorrections((c) => ({ ...c, [key]: clean }));
+  };
   const dirty = Object.keys(corrections).length > 0;
   return (
     <div className="space-y-4">
@@ -107,30 +116,14 @@ export function ReviewPanel({ documentId, invoice, onFocusField, focused, onChan
           </div>
         ) : null}
       </Card>
-      {invoice.lines.length ? (
+      {lines.length || canEdit ? (
         <Card title={t("review.lines")}>
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase text-neutral-600">
-              <tr>
-                <th className="p-1">{t("field.line.description")}</th>
-                <th className="p-1 text-right">{t("field.line.quantity")}</th>
-                <th className="p-1 text-right">{t("field.line.unit_price")}</th>
-                <th className="p-1 text-right">{t("field.line.net_amount")}</th>
-                <th className="p-1 text-right">{t("field.line.vat_rate")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoice.lines.map((ln, i) => (
-                <tr key={i} className="border-t border-neutral-100 dark:border-neutral-800">
-                  <td className="p-1">{String(ln.description ?? "")}</td>
-                  <td className="p-1 text-right tabular-nums">{String(ln.quantity ?? "")}</td>
-                  <td className="p-1 text-right tabular-nums">{String(ln.unit_price ?? "")}</td>
-                  <td className="p-1 text-right tabular-nums">{String(ln.net_amount ?? "")}</td>
-                  <td className="p-1 text-right tabular-nums">{String(ln.vat_rate ?? "")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <LinesEditor lines={lines} onChange={onRows("lines")} readOnly={!canEdit} t={t} />
+        </Card>
+      ) : null}
+      {allowances.length || canEdit ? (
+        <Card title={t("review.allowances")}>
+          <AllowancesEditor rows={allowances} onChange={onRows("allowances_charges")} readOnly={!canEdit} t={t} />
         </Card>
       ) : null}
       <Card title={t("review.validation")}>

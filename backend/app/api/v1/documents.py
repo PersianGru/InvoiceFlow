@@ -13,7 +13,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import func, select
 
 from app.api.deps import FirmDep, LicenseServiceDep, SessionDep, require
@@ -561,7 +561,13 @@ async def review(
                 m["confirmed_by"], m["confirmed_at"] = str(actor.user_id), datetime.now(UTC).isoformat()
         audit_entries.append(AuditEntry(at=datetime.now(UTC), actor=str(actor.user_id), action="approve"))
     inv_dict["audit"] = list(inv_dict.get("audit", [])) + [e.model_dump(mode="json") for e in audit_entries]
-    invoice = Invoice.model_validate(inv_dict)
+    try:
+        invoice = Invoice.model_validate(inv_dict)
+    except ValidationError as e:
+        errors = e.errors()
+        where = ".".join(str(x) for x in errors[0]["loc"]) if errors else ""
+        msg = errors[0]["msg"] if errors else "invalid value"
+        raise HTTPException(422, {"error": "invalid_correction", "message": f"{where}: {msg}"}) from e
     session.add(
         Extraction(
             firm_id=d.firm_id,
@@ -598,6 +604,12 @@ async def review(
                     ),
                     "currency": invoice.currency,
                     "corrected": sorted(body.corrections),
+                    # the confirmed values: the model sees what was right, not only that it was wrong
+                    "values": {
+                        path: (str(v)[:120] if not isinstance(v, (int, float, bool)) else v)
+                        for path, v in sorted(body.corrections.items())[:20]
+                        if v is not None and not isinstance(v, (dict, list))
+                    },
                 }
             )
             profile.examples = examples[-10:]

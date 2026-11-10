@@ -2,7 +2,8 @@
 
 Rule: for each header field, take the value with the highest confidence; when two providers agree,
 raise the confidence (bounded); when they disagree, lower the winner's confidence so the review
-queue sees it. Lines and VAT breakdown come from the provider with the most line detail.
+queue sees it. Lines and VAT breakdown come from the provider with the most line detail; document
+discounts and charges from the provider that found the most of them.
 """
 
 from __future__ import annotations
@@ -33,7 +34,13 @@ HEADER_PATHS = (
     "totals.vat_total",
     "totals.gross_total",
     "totals.amount_due",
+    "totals.allowances_total",
+    "totals.charges_total",
+    "totals.prepaid",
+    "totals.rounding",
     "payment.due_date",
+    "payment.discount_percent",
+    "payment.discount_until",
     "payment.terms_text",
     "payment.payment_reference",
     "references.purchase_order",
@@ -89,6 +96,10 @@ def merge_results(results: list[ExtractionResult]) -> ExtractionResult:
     for key in ("lines", "vat_breakdown"):
         if base.get("meta", {}).get(key):
             meta[key] = base["meta"][key]
+    _, ac_src = max(dumps, key=lambda rd: len(rd[1].get("allowances_charges") or []))
+    out["allowances_charges"] = ac_src.get("allowances_charges") or []
+    if ac_src.get("meta", {}).get("allowances_charges"):
+        meta["allowances_charges"] = ac_src["meta"]["allowances_charges"]
     out["meta"] = meta
     invoice = Invoice.model_validate(out)
     providers = "+".join(r.provider for r in results)

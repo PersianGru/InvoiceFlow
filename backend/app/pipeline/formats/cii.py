@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any
 from xml.etree.ElementTree import Element  # noqa: S405
 
@@ -14,8 +15,10 @@ from app.pipeline.formats.common import (
     clean_vat,
     dec,
     iso_date,
+    line_adjustments,
     normalise_iban,
     parse_root,
+    skonto,
     text,
 )
 from app.schemas.invoice import DocumentType
@@ -59,6 +62,36 @@ def _party(p: Element | None) -> dict[str, Any]:
             "country": text(addr, "CountryID"),
         }
     return {k: v for k, v in out.items() if v}
+
+
+def _allowance_charge(ac: Element) -> dict[str, Any]:
+    tax = child(ac, "CategoryTradeTax")
+    out = {
+        "charge": (text(ac, "ChargeIndicator", "Indicator") or "").lower() == "true",
+        "amount": dec(text(ac, "ActualAmount")),
+        "base_amount": dec(text(ac, "BasisAmount")),
+        "percent": dec(text(ac, "CalculationPercent")),
+        "reason": text(ac, "Reason"),
+        "reason_code": text(ac, "ReasonCode"),
+        "vat_category": text(tax, "CategoryCode"),
+        "vat_rate": dec(text(tax, "RateApplicablePercent")),
+    }
+    return {k: v for k, v in out.items() if v is not None}
+
+
+def _discount_terms(terms: Element | None, issue: Any) -> dict[str, Any]:
+    """Factur-X EXTENDED early-payment discount terms, else XRechnung's #SKONTO# line."""
+    found = skonto(text(terms, "Description"), issue)
+    dt = child(terms, "ApplicableTradePaymentDiscountTerms")
+    percent = dec(text(dt, "CalculationPercent"))
+    if percent is None:
+        return found
+    out: dict[str, Any] = {"discount_percent": percent}
+    days = dec(text(dt, "BasisPeriodMeasure"))
+    basis = iso_date(_dt(dt, "BasisDateTime")) or issue
+    if days is not None and basis is not None and 0 < days <= 365:
+        out["discount_until"] = basis + timedelta(days=int(days))
+    return out
 
 
 def parse(xml: bytes) -> ParsedInvoice:
@@ -109,8 +142,13 @@ def parse(xml: bytes) -> ParsedInvoice:
         "payment_reference": text(settlement, "PaymentReference"),
         "due_date": iso_date(_dt(terms, "DueDateDateTime")),
         "terms_text": text(terms, "Description"),
+        **_discount_terms(terms, iso_date(_dt(doc, "IssueDateTime"))),
     }
     inv.set("payment", {k: v for k, v in payment.items() if v})
+    inv.set(
+        "allowances_charges",
+        [_allowance_charge(ac) for ac in children(settlement, "SpecifiedTradeAllowanceCharge")],
+    )
     header_period = child(settlement, "BillingSpecifiedPeriod")
     inv.set("period_start", iso_date(_dt(header_period, "StartDateTime")))
     inv.set("period_end", iso_date(_dt(header_period, "EndDateTime")))
@@ -164,6 +202,9 @@ def parse(xml: bytes) -> ParsedInvoice:
                 "vat_category": text(line_tax, "CategoryCode"),
                 "period_start": iso_date(_dt(line_period, "StartDateTime")),
                 "period_end": iso_date(_dt(line_period, "EndDateTime")),
+                **line_adjustments(
+                    [_allowance_charge(ac) for ac in children(stl, "SpecifiedTradeAllowanceCharge")]
+                ),
             }
         )
     inv.set("lines", [{k: v for k, v in ln.items() if v is not None} for ln in lines])

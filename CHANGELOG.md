@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.3 — receipts, discounts and editable lines (2026-11-10)
+
+- Better reading of till receipts: weights such as `1,668 kg`, price × weight on one line, item discounts,
+  and receipts whose line amounts include VAT. Lithuanian documents get their own reading rules.
+- Discounts and charges everywhere: on single lines (with reason), on the whole document (e.g. 5 % off,
+  freight), rounding, prepaid amounts and early-payment discounts (Skonto). They are read from photos,
+  PDFs and e-invoices, checked, and written to UBL, XRechnung, CII/Factur-X and CSV/XLSX exports.
+- On the review screen you can edit every line item and every document discount or charge, and add or
+  remove them.
+- Your corrections now teach the supplier profile the right values, not only which fields were wrong.
+
 ## 0.11.2 — photos go to the vision model (2026-11-10)
 
 - Your own local model with vision (qwen3-vl and the like): photos and scans are now always sent as images

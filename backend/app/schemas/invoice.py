@@ -101,7 +101,18 @@ class LineItem(BaseModel):
     quantity: Decimal | None = None  # BT-129
     unit: str | None = Field(default=None, description="UN/ECE Rec 20 code, BT-130")
     unit_price: Decimal | None = None  # BT-146
-    net_amount: Decimal | None = None  # BT-131
+    allowance_amount: Decimal | None = Field(
+        default=None, description="Line discount, BT-136; net_amount is the amount after it"
+    )
+    allowance_percent: Decimal | None = None  # BT-138
+    allowance_reason: str | None = None  # BT-139
+    charge_amount: Decimal | None = Field(
+        default=None, description="Line charge, BT-141; net_amount includes it"
+    )
+    charge_reason: str | None = None  # BT-144
+    net_amount: Decimal | None = Field(
+        default=None, description="BT-131: quantity × unit price − discount + charge"
+    )
     vat_rate: Decimal | None = None  # BT-152
     vat_category: str | None = Field(
         default=None, description="UNCL5305 code: S, Z, E, AE, K, G, O, L, M; BT-151"
@@ -111,6 +122,21 @@ class LineItem(BaseModel):
     period_start: date | None = None  # BT-134
     period_end: date | None = None  # BT-135
     meta: dict[str, FieldMeta] = Field(default_factory=dict, description="Per-field provenance by field name")
+
+
+class AllowanceCharge(BaseModel):
+    """A discount (BG-20) or charge (BG-21) on the whole document, e.g. 3 % off the total or freight.
+    Amounts are positive; ``charge`` tells which side it is on."""
+
+    model_config = ConfigDict(extra="forbid")
+    charge: bool = False
+    amount: Decimal | None = None  # BT-92 / BT-99
+    base_amount: Decimal | None = None  # BT-93 / BT-100
+    percent: Decimal | None = None  # BT-94 / BT-101
+    reason: str | None = None  # BT-97 / BT-104
+    reason_code: str | None = None  # BT-98 / BT-105 (UNCL5189 / UNCL7161)
+    vat_category: str | None = None  # BT-95 / BT-102
+    vat_rate: Decimal | None = None  # BT-96 / BT-103
 
 
 class VatBreakdown(BaseModel):
@@ -142,6 +168,8 @@ class PaymentTerms(BaseModel):
     terms_text: str | None = None  # BT-20
     payment_means_code: str | None = None  # BT-81 (UNCL4461)
     payment_reference: str | None = None  # BT-83
+    # early-payment discount ("2 % if paid within 10 days", German Skonto): a payment term, never
+    # subtracted from the totals
     discount_percent: Decimal | None = None
     discount_until: date | None = None
 
@@ -238,6 +266,7 @@ class Invoice(BaseModel):
     supplier: Party = Field(default_factory=Party)
     buyer: Party = Field(default_factory=Party)
     lines: list[LineItem] = Field(default_factory=list)
+    allowances_charges: list[AllowanceCharge] = Field(default_factory=list)  # BG-20 / BG-21
     vat_breakdown: list[VatBreakdown] = Field(default_factory=list)
     totals: Totals = Field(default_factory=Totals)
     payment: PaymentTerms = Field(default_factory=PaymentTerms)

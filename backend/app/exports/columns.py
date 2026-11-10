@@ -80,6 +80,8 @@ COLUMNS: tuple[ColumnSpec, ...] = (
     _col("totals.vat_total", "VAT total", "money", "totals"),
     _col("totals.gross_total", "Gross total", "money", "totals"),
     _col("totals.prepaid", "Prepaid", "money", "totals"),
+    _col("totals.rounding", "Rounding", "money", "totals"),
+    _col("allowances_text", "Document discounts and charges", "text", "totals"),
     _col("totals.amount_due", "Amount due", "money", "totals"),
     _col("vat_rate_main", "Main VAT rate %", "number", "totals"),
     _col("exchange_rate", "Exchange rate", "number", "totals"),
@@ -89,6 +91,8 @@ COLUMNS: tuple[ColumnSpec, ...] = (
     _col("payment.payment_reference", "Payment reference", "text", "payment"),
     _col("payment.payment_means_code", "Payment means", "text", "payment"),
     _col("payment.terms_text", "Payment terms", "text", "payment"),
+    _col("payment.discount_percent", "Early-payment discount %", "number", "payment"),
+    _col("payment.discount_until", "Early-payment discount until", "date", "payment"),
     _col("references.purchase_order", "Purchase order", "text", "references"),
     _col("references.contract", "Contract", "text", "references"),
     _col("references.buyer_reference", "Buyer reference", "text", "references"),
@@ -105,6 +109,9 @@ COLUMNS: tuple[ColumnSpec, ...] = (
     _col("line.quantity", "Line quantity", "number", "lines"),
     _col("line.unit", "Line unit", "text", "lines"),
     _col("line.unit_price", "Line unit price", "money", "lines"),
+    _col("line.allowance_amount", "Line discount", "money", "lines"),
+    _col("line.allowance_reason", "Line discount reason", "text", "lines"),
+    _col("line.charge_amount", "Line charge", "money", "lines"),
     _col("line.net_amount", "Line net", "money", "lines"),
     _col("line.vat_rate", "Line VAT %", "number", "lines"),
     _col("line.vat_category", "Line VAT category", "text", "lines"),
@@ -218,6 +225,15 @@ def value_of(row: ExportRow, key: str) -> Any:
         return main_vat_rate(inv)
     if key == "line_count":
         return len(inv.lines)
+    if key == "allowances_text":  # "-15.00 Volume discount; +9.90 Freight"
+        return (
+            "; ".join(
+                f"{'+' if a.charge else '-'}{a.amount} {a.reason or a.reason_code or ''}".strip()
+                for a in inv.allowances_charges
+                if a.amount is not None
+            )
+            or None
+        )
     if key in ("reverse_charge", "intra_community", "export"):
         return _bool_text(getattr(inv, key))
     if key == "validation_worst":

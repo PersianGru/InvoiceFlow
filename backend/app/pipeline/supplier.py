@@ -20,7 +20,7 @@ from app.schemas.invoice import Invoice
 
 _LEGAL_FORMS = re.compile(
     r"\b(gmbh|ag|kg|ohg|ug|e\.?k\.?|sa|sas|sarl|sàrl|eurl|sl|slu|srl|spa|s\.?p\.?a\.?|bv|b\.?v\.?|nv"
-    r"|ltd|limited|llc|inc|plc|sp\.? z o\.?o\.?|s\.?a\.?|oy|ab|as|aps)\b\.?"
+    r"|ltd|limited|llc|inc|plc|sp\.? z o\.?o\.?|s\.?a\.?|oy|ab|as|aps|uab|mb|vsi|sia|ou)\b\.?"
 )
 
 

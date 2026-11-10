@@ -8,8 +8,8 @@ from datetime import date
 from decimal import Decimal
 from xml.etree.ElementTree import Element, SubElement, tostring  # noqa: S405
 
-from app.exports.ubl_writer import TYPE_CODES
-from app.schemas.invoice import DocumentType, Invoice, Party
+from app.exports.ubl_writer import TYPE_CODES, doc_allowances, line_allowances, payment_terms_text
+from app.schemas.invoice import AllowanceCharge, DocumentType, Invoice, Party
 
 NS_RSM = "urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
 NS_RAM = "urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
@@ -41,6 +41,23 @@ def _dt(parent: Element, name: str, d: date | None) -> None:
 
 def _money(v: Decimal | None) -> str | None:
     return None if v is None else f"{v.quantize(Decimal('0.01'))}"
+
+
+def _allowance_charge(parent: Element, a: AllowanceCharge, *, with_tax: bool) -> None:
+    ac = _ram(parent, "SpecifiedTradeAllowanceCharge")
+    ind = _ram(ac, "ChargeIndicator")
+    SubElement(ind, f"{{{NS_UDT}}}Indicator").text = "true" if a.charge else "false"
+    if a.percent is not None and a.base_amount is not None:
+        _ram(ac, "CalculationPercent", a.percent)
+        _ram(ac, "BasisAmount", _money(a.base_amount))
+    _opt(ac, "ActualAmount", _money(a.amount))
+    _opt(ac, "ReasonCode", a.reason_code)
+    _opt(ac, "Reason", a.reason or (None if a.reason_code else ("Charge" if a.charge else "Discount")))
+    if with_tax:
+        tax = _ram(ac, "CategoryTradeTax")
+        _ram(tax, "TypeCode", "VAT")
+        _opt(tax, "CategoryCode", a.vat_category)
+        _opt(tax, "RateApplicablePercent", a.vat_rate)
 
 
 def _party(parent: Element, name: str, p: Party) -> None:
@@ -111,6 +128,8 @@ def to_cii(inv: Invoice, *, xrechnung: bool = False) -> bytes:
             period = _ram(stl, "BillingSpecifiedPeriod")
             _dt(period, "StartDateTime", ln.period_start)
             _dt(period, "EndDateTime", ln.period_end)
+        for a in line_allowances(ln):
+            _allowance_charge(stl, a, with_tax=False)
         _opt(
             _ram(stl, "SpecifiedTradeSettlementLineMonetarySummation"),
             "LineTotalAmount",
@@ -170,9 +189,12 @@ def to_cii(inv: Invoice, *, xrechnung: bool = False) -> bytes:
         period = _ram(settlement, "BillingSpecifiedPeriod")
         _dt(period, "StartDateTime", inv.period_start)
         _dt(period, "EndDateTime", inv.period_end)
-    if inv.payment.due_date or inv.payment.terms_text:
+    for a in doc_allowances(inv):
+        _allowance_charge(settlement, a, with_tax=True)
+    terms_text = payment_terms_text(inv, xrechnung=xrechnung)
+    if inv.payment.due_date or terms_text:
         terms = _ram(settlement, "SpecifiedTradePaymentTerms")
-        _opt(terms, "Description", inv.payment.terms_text)
+        _opt(terms, "Description", terms_text)
         _dt(terms, "DueDateDateTime", inv.payment.due_date)
     summ = _ram(settlement, "SpecifiedTradeSettlementHeaderMonetarySummation")
     t = inv.totals

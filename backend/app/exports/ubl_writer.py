@@ -8,7 +8,7 @@ from datetime import date
 from decimal import Decimal
 from xml.etree.ElementTree import Element, SubElement, tostring  # noqa: S405 - writer only
 
-from app.schemas.invoice import DocumentType, Invoice, Party
+from app.schemas.invoice import AllowanceCharge, DocumentType, Invoice, LineItem, Party
 
 NS_INVOICE = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
 NS_CREDIT = "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"
@@ -42,6 +42,70 @@ def _cac(parent: Element, name: str) -> Element:
 def _amt(parent: Element, name: str, value: Decimal | None, currency: str) -> None:
     if value is not None:
         _cbc(parent, name, f"{value.quantize(Decimal('0.01'))}", currencyID=currency)
+
+
+def payment_terms_text(inv: Invoice, *, xrechnung: bool) -> str | None:
+    """BT-20 with the early-payment discount: XRechnung's ``#SKONTO#`` line, otherwise plain words."""
+    text = inv.payment.terms_text
+    pct, until = inv.payment.discount_percent, inv.payment.discount_until
+    if pct is None or until is None or "#SKONTO#" in (text or "").upper():
+        return text
+    if xrechnung and inv.issue_date is not None and until >= inv.issue_date:
+        extra = f"#SKONTO#TAGE={(until - inv.issue_date).days}#PROZENT={pct.quantize(Decimal('0.01'))}#\n"
+    else:
+        extra = f"{pct.normalize():f} % early-payment discount if paid by {until.isoformat()}"
+    return f"{text}\n{extra}" if text else extra
+
+
+def doc_allowances(inv: Invoice) -> list[AllowanceCharge]:
+    """Document discounts/charges with a VAT category filled in (needed by EN 16931): from the item,
+    else the only VAT rate on the document, else standard rate."""
+    only = inv.vat_breakdown[0] if len(inv.vat_breakdown) == 1 else None
+    out = []
+    for a in inv.allowances_charges:
+        if a.amount is None:
+            continue
+        cat = a.vat_category or (only.category if only else None)
+        rate = a.vat_rate if a.vat_rate is not None else (only.rate if only else None)
+        cat = cat or ("S" if (rate or 0) > 0 else "Z")
+        out.append(a.model_copy(update={"vat_category": cat, "vat_rate": rate}))
+    return out
+
+
+def line_allowances(ln: LineItem) -> list[AllowanceCharge]:
+    base = ln.quantity * ln.unit_price if ln.quantity is not None and ln.unit_price is not None else None
+    out = []
+    if ln.allowance_amount:
+        pct = ln.allowance_percent if base is not None else None
+        out.append(
+            AllowanceCharge(
+                charge=False,
+                amount=ln.allowance_amount,
+                percent=pct,
+                base_amount=base if pct is not None else None,
+                reason=ln.allowance_reason or "Discount",
+                reason_code=None if ln.allowance_reason else "95",
+            )
+        )
+    if ln.charge_amount:
+        out.append(AllowanceCharge(charge=True, amount=ln.charge_amount, reason=ln.charge_reason or "Charge"))
+    return out
+
+
+def _allowance_charge(parent: Element, a: AllowanceCharge, currency: str, *, with_tax: bool) -> None:
+    ac = _cac(parent, "AllowanceCharge")
+    _cbc(ac, "ChargeIndicator", "true" if a.charge else "false")
+    _cbc(ac, "AllowanceChargeReasonCode", a.reason_code)
+    fallback = None if a.reason_code else ("Charge" if a.charge else "Discount")
+    _cbc(ac, "AllowanceChargeReason", a.reason or fallback)
+    _cbc(ac, "MultiplierFactorNumeric", a.percent if a.base_amount is not None else None)
+    _amt(ac, "Amount", a.amount, currency)
+    _amt(ac, "BaseAmount", a.base_amount if a.percent is not None else None, currency)
+    if with_tax:
+        cat = _cac(ac, "TaxCategory")
+        _cbc(cat, "ID", a.vat_category)
+        _cbc(cat, "Percent", a.vat_rate)
+        _cbc(_cac(cat, "TaxScheme"), "ID", "VAT")
 
 
 def _party(parent: Element, p: Party, role: str) -> None:
@@ -126,8 +190,11 @@ def to_ubl(inv: Invoice, *, xrechnung: bool = False) -> bytes:
             _cbc(acct, "ID", inv.supplier.iban)
             if inv.supplier.bic:
                 _cbc(_cac(acct, "FinancialInstitutionBranch"), "ID", inv.supplier.bic)
-    if inv.payment.terms_text:
-        _cbc(_cac(root, "PaymentTerms"), "Note", inv.payment.terms_text)
+    terms = payment_terms_text(inv, xrechnung=xrechnung)
+    if terms:
+        _cbc(_cac(root, "PaymentTerms"), "Note", terms)
+    for a in doc_allowances(inv):
+        _allowance_charge(root, a, currency, with_tax=True)
     tax_total = _cac(root, "TaxTotal")
     _amt(
         tax_total,
@@ -173,6 +240,8 @@ def to_ubl(inv: Invoice, *, xrechnung: bool = False) -> bytes:
             lp = _cac(line, "InvoicePeriod")
             _cbc(lp, "StartDate", ln.period_start)
             _cbc(lp, "EndDate", ln.period_end)
+        for a in line_allowances(ln):
+            _allowance_charge(line, a, currency, with_tax=False)
         item = _cac(line, "Item")
         _cbc(item, "Name", ln.description or "Item")
         if ln.vat_rate is not None or ln.vat_category:

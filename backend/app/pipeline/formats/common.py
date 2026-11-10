@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 from xml.etree.ElementTree import Element  # noqa: S405 - elements come from defusedxml parsing
@@ -139,3 +139,32 @@ def normalise_iban(value: str | None) -> str | None:
     if not value:
         return None
     return re.sub(r"\s", "", value).upper()
+
+
+_SKONTO = re.compile(r"#SKONTO#TAGE=(\d+)#PROZENT=(\d+(?:[.,]\d+)?)#", re.IGNORECASE)
+
+
+def skonto(terms_text: str | None, issue_date: date | None) -> dict[str, Any]:
+    """XRechnung's early-payment discount line ``#SKONTO#TAGE=14#PROZENT=2.00#`` (first one wins)."""
+    m = _SKONTO.search(terms_text or "")
+    if not m:
+        return {}
+    days, percent = int(m.group(1)), dec(m.group(2))
+    until = issue_date + timedelta(days=days) if issue_date is not None and 0 < days <= 365 else None
+    return {k: v for k, v in {"discount_percent": percent, "discount_until": until}.items() if v is not None}
+
+
+def line_adjustments(items: list[dict[str, Any]]) -> dict[str, Any]:
+    """Line discounts and charges (BG-27 / BG-28) folded into the line's totals; reasons joined."""
+    out: dict[str, Any] = {}
+    for kind, is_charge in (("allowance", False), ("charge", True)):
+        mine = [a for a in items if a.get("charge") is is_charge and a.get("amount") is not None]
+        if not mine:
+            continue
+        out[f"{kind}_amount"] = sum((a["amount"] for a in mine), Decimal(0))
+        reasons = [str(a.get("reason") or a.get("reason_code") or "") for a in mine]
+        if any(reasons):
+            out[f"{kind}_reason"] = "; ".join(r for r in reasons if r)
+        if kind == "allowance" and len(mine) == 1 and mine[0].get("percent") is not None:
+            out["allowance_percent"] = mine[0]["percent"]
+    return out

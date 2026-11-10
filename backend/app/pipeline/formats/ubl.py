@@ -14,9 +14,11 @@ from app.pipeline.formats.common import (
     clean_vat,
     dec,
     iso_date,
+    line_adjustments,
     local,
     normalise_iban,
     parse_root,
+    skonto,
     text,
 )
 from app.schemas.invoice import DocumentType
@@ -45,6 +47,21 @@ def _party(p: Element | None) -> dict[str, Any]:
             "country": text(addr, "Country", "IdentificationCode"),
         }
     return {k: v for k, v in out.items() if v}
+
+
+def _allowance_charge(ac: Element) -> dict[str, Any]:
+    cat = child(ac, "TaxCategory")
+    out = {
+        "charge": (text(ac, "ChargeIndicator") or "").lower() == "true",
+        "amount": dec(text(ac, "Amount")),
+        "base_amount": dec(text(ac, "BaseAmount")),
+        "percent": dec(text(ac, "MultiplierFactorNumeric")),
+        "reason": text(ac, "AllowanceChargeReason"),
+        "reason_code": text(ac, "AllowanceChargeReasonCode"),
+        "vat_category": text(cat, "ID"),
+        "vat_rate": dec(text(cat, "Percent")),
+    }
+    return {k: v for k, v in out.items() if v is not None}
 
 
 def parse(xml: bytes) -> ParsedInvoice:
@@ -88,6 +105,7 @@ def parse(xml: bytes) -> ParsedInvoice:
         "payment_reference": text(pm, "PaymentID"),
         "due_date": iso_date(text(root, "DueDate") or text(pm, "PaymentDueDate")),
         "terms_text": text(root, "PaymentTerms", "Note"),
+        **skonto(text(root, "PaymentTerms", "Note"), iso_date(text(root, "IssueDate"))),
     }
     iban = normalise_iban(text(pm, "PayeeFinancialAccount", "ID"))
     bic = text(pm, "PayeeFinancialAccount", "FinancialInstitutionBranch", "ID")
@@ -98,6 +116,7 @@ def parse(xml: bytes) -> ParsedInvoice:
     inv.set("supplier", supplier)
     inv.set("buyer", buyer)
     inv.set("payment", {k: v for k, v in payment.items() if v})
+    inv.set("allowances_charges", [_allowance_charge(ac) for ac in children(root, "AllowanceCharge")])
 
     breakdown = []
     for tt in children(root, "TaxTotal"):
@@ -149,6 +168,7 @@ def parse(xml: bytes) -> ParsedInvoice:
                 "vat_category": text(tax, "ID"),
                 "period_start": iso_date(text(lp, "StartDate")),
                 "period_end": iso_date(text(lp, "EndDate")),
+                **line_adjustments([_allowance_charge(ac) for ac in children(ln, "AllowanceCharge")]),
             }
         )
     inv.set("lines", [{k: v for k, v in ln.items() if v is not None} for ln in lines])

@@ -1,0 +1,25 @@
+{
+  "version": "2026-11-10",
+  "source": "Country reading hints for the model: document names, identifiers and layouts as printed. Data, not code; the printed document always wins.",
+  "countries": {
+    "LT": {
+      "detect": {
+        "keywords": ["pvm", "kvitas", "sąskaita faktūra", "saskaita faktura", "mokėti", "grąža", "nuolaida", "įmonės kodas", "mokėtojo kodas"],
+        "vat_prefix": "LT"
+      },
+      "hints": [
+        "This is a Lithuanian document. Numbers use a comma as decimal separator (37,25 = 37.25; 1,668 kg = 1.668).",
+        "Document type: 'Kvitas' / 'Kasos aparato kvitas' is a receipt; 'PVM sąskaita faktūra' and 'Sąskaita faktūra' are invoices; 'Kreditinė sąskaita faktūra' is a credit_note; 'Išankstinė sąskaita' is a proforma. A cash register receipt is not a VAT invoice.",
+        "'PVM mokėtojo kodas' (LT followed by digits) is supplier.vat_id; 'Įmonės kodas' (usually 9 digits) is supplier.registration_id. They are different numbers: never merge them.",
+        "number: on an invoice the series ('Serija') and number ('Nr.') together, e.g. 'ABC 12345'; on a receipt the 'Kvitas' number (e.g. 293/2905). The cash register number ('Kasa Nr.'), card numbers and barcodes are not the document number.",
+        "'Pardavėjas' is the supplier, 'Pirkėjas' the buyer. Receipts usually have no buyer: leave it empty.",
+        "Weighed items print 'unit price X quantity kg' under the description (e.g. '5,49 X 1,668 kg' then 9,16): unit_price 5.49, quantity 1.668, unit kg, amount 9.16.",
+        "A 'Nuolaida' line with a negative amount right after an item is that item's discount: put the positive value in the line's discount and the amount after discount in net_amount. Do not list it as a separate line.",
+        "VAT summary such as 'A=21,00 %' with columns 'PVM', 'Be PVM', 'Su PVM': one vat_breakdown entry with category A, rate 21, tax_amount = PVM, taxable_amount = Be PVM. The letter after a line amount (A, B…) is that line's vat_category.",
+        "On receipts line amounts include VAT. totals: net_total = 'Be PVM' / 'Suma be PVM', vat_total = 'PVM' / 'PVM suma', gross_total = 'Su PVM' / 'Suma su PVM' / 'Iš viso', amount_due = 'Mokėti'.",
+        "Not totals: 'Mokėta' (cash handed over), 'Grąža' (change), 'Iš viso sutaupėte' / 'Pritaikytos nuolaidos' (savings already contained in the lines), 'AČIŪ kortelė' and store-money balances (loyalty), promotional messages.",
+        "Dates are printed as YYYY-MM-DD or YYYY.MM.DD. Lithuanian VAT rates are 21, 9, 5 or 0 percent; always take the rate printed on the document."
+      ]
+    }
+  }
+}

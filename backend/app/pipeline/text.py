@@ -52,6 +52,7 @@ _LANG_HINTS = {
         "brutto",
         "netto",
     ),
+    "lt": ("pvm", "kvitas", "sąskaita", "faktūra", "mokėti", "nuolaida", "grąža", "suma", "įmonės kodas"),
     "en": ("invoice", "amount", "vat", "total", "due date", "invoice number", "subtotal", "bill to"),
 }
 
